@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface UserStory {
   name: string;
@@ -37,15 +37,12 @@ const Index = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('/functions/generate-breakdown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: projectDescription }),
+      const { data, error } = await supabase.functions.invoke('generate-breakdown', {
+        body: { description: projectDescription }
       });
 
-      if (!response.ok) throw new Error('Failed to generate breakdown');
+      if (error) throw error;
 
-      const data = await response.json();
       setBreakdown(data);
       setEstimate(null);
       toast({
@@ -53,6 +50,7 @@ const Index = () => {
         description: "Please review the breakdown and confirm to get an estimation.",
       });
     } catch (error) {
+      console.error('Error generating breakdown:', error);
       toast({
         title: "Error",
         description: "Failed to generate breakdown. Please try again.",
@@ -68,21 +66,19 @@ const Index = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('/functions/generate-estimate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: projectDescription, breakdown }),
+      const { data, error } = await supabase.functions.invoke('generate-estimate', {
+        body: { description: projectDescription, breakdown }
       });
 
-      if (!response.ok) throw new Error('Failed to generate estimate');
+      if (error) throw error;
 
-      const data = await response.json();
       setEstimate(data.generatedText);
       toast({
         title: "Estimate Generated",
         description: "Your project estimate has been created successfully.",
       });
     } catch (error) {
+      console.error('Error generating estimate:', error);
       toast({
         title: "Error",
         description: "Failed to generate estimate. Please try again.",

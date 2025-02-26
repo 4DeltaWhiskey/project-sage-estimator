@@ -19,10 +19,12 @@ serve(async (req) => {
     const { description } = await req.json();
 
     if (!openAIApiKey) {
+      console.error('OpenAI API key is not configured');
       throw new Error('OpenAI API key is not configured');
     }
 
     if (!description || typeof description !== 'string') {
+      console.error('Invalid project description');
       throw new Error('Invalid project description');
     }
 
@@ -81,8 +83,14 @@ Keep the output structured, practical, and focused on modern software developmen
     console.log('Successfully generated breakdown');
 
     // Validate the response structure
-    const breakdown = JSON.parse(data.choices[0].message.content);
-    if (!breakdown.features || !Array.isArray(breakdown.features)) {
+    let breakdown;
+    try {
+      breakdown = JSON.parse(data.choices[0].message.content);
+      if (!breakdown.features || !Array.isArray(breakdown.features)) {
+        throw new Error('Invalid response structure');
+      }
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
       throw new Error('Invalid response format from AI');
     }
 

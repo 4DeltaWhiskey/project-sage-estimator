@@ -1,1 +1,8 @@
+
 project_id = "xeuewjqontwjoascymly"
+
+[functions.generate-breakdown]
+verify_jwt = false
+
+[functions.generate-estimate]
+verify_jwt = false
