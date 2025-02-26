@@ -202,7 +202,7 @@ const Index = () => {
         <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl rounded-3xl" />
         
         <div className="relative space-y-6 text-center mb-12">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-center">
             <span className="px-4 py-1.5 text-sm font-medium bg-white/10 backdrop-blur-md rounded-full inline-block shadow-xl border border-white/20 hover:border-white/40 transition-colors">
               Beta
             </span>
@@ -210,7 +210,7 @@ const Index = () => {
               variant="ghost"
               size="sm"
               onClick={session ? handleLogout : () => setAuthDialog(true)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 absolute right-0"
             >
               {session ? (
                 <>
