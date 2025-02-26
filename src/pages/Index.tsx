@@ -1,10 +1,9 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Euro } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -68,7 +67,11 @@ const Index = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-estimate', {
-        body: { description: projectDescription, breakdown }
+        body: { 
+          description: projectDescription, 
+          breakdown,
+          hourlyRate: 50
+        }
       });
 
       if (error) throw error;
@@ -204,8 +207,35 @@ const Index = () => {
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent mb-6">
                   Project Estimate
                 </h2>
-                <div className="whitespace-pre-wrap font-mono text-sm bg-black/5 dark:bg-white/5 rounded-xl p-6">
-                  {estimate}
+                <div className="space-y-6">
+                  <div className="bg-black/5 dark:bg-white/5 rounded-xl p-6">
+                    <div className="whitespace-pre-wrap font-mono text-sm">
+                      {estimate}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-2">
+                      <Euro className="h-5 w-5" />
+                      Hourly Rate: 50€
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      Final costs will be calculated based on the actual time spent on development.
+                    </p>
+                  </div>
+
+                  <div className="bg-violet-500/10 dark:bg-violet-500/20 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-violet-600 dark:text-violet-400 mb-4">
+                      Book a Consultation
+                    </h3>
+                    <div className="aspect-video w-full">
+                      <iframe 
+                        src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile"
+                        className="w-full h-full rounded-lg border border-white/20"
+                        allow="camera; microphone; geolocation"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </ScrollArea>

@@ -15,18 +15,19 @@ serve(async (req) => {
   }
 
   try {
-    const { description, breakdown } = await req.json();
+    const { description, breakdown, hourlyRate = 50 } = await req.json();
 
     const systemPrompt = `You are a senior software project manager with extensive experience in estimating software development projects.
-    Based on the provided project breakdown, create a detailed estimation including:
+    Based on the provided project breakdown and an hourly rate of ${hourlyRate}€, create a detailed estimation including:
     
     1. Time estimates for each feature (in days or weeks)
     2. Team composition needed (roles and number of people)
-    3. Cost range estimation (provide a range in USD)
+    3. Total cost estimation based on ${hourlyRate}€ per hour (8 hours per day, 5 days per week)
     4. Risk assessment and recommendations
     5. Timeline breakdown with phases
     
-    Format the response in a clear, structured manner using markdown. Base your estimates on industry standards and best practices.`;
+    Format the response in a clear, structured manner using markdown. Base your estimates on industry standards and best practices.
+    Include subtotals for each feature and a grand total in Euros.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -42,12 +43,21 @@ serve(async (req) => {
             role: 'user', 
             content: JSON.stringify({
               description,
-              breakdown: breakdown.features
+              breakdown: breakdown.features,
+              hourlyRate
             }, null, 2)
           }
         ],
+        temperature: 0.7,
+        max_tokens: 2000,
       }),
     });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('OpenAI API error:', error);
+      throw new Error('Failed to generate project estimate');
+    }
 
     const data = await response.json();
     const generatedText = data.choices[0].message.content;
@@ -57,9 +67,12 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in generate-estimate function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message || 'Failed to generate project estimate' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
