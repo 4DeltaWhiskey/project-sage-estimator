@@ -15,18 +15,29 @@ serve(async (req) => {
   }
 
   try {
-    const { description, breakdown } = await req.json();
+    const { description } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager with extensive experience in estimating software development projects.
-    Based on the provided project breakdown, create a detailed estimation including:
-    
-    1. Time estimates for each feature (in days or weeks)
-    2. Team composition needed (roles and number of people)
-    3. Cost range estimation (provide a range in USD)
-    4. Risk assessment and recommendations
-    5. Timeline breakdown with phases
-    
-    Format the response in a clear, structured manner using markdown. Base your estimates on industry standards and best practices.`;
+    const systemPrompt = `You are a senior product manager and software architect. Break down the following project description into a structured format with:
+
+1. Core Features (maximum 6)
+2. User Stories for each feature (2-4 stories per feature)
+3. Technical Components needed
+
+Format the response as a JSON object with this structure:
+{
+  "features": [
+    {
+      "name": "Feature name",
+      "description": "Brief feature description",
+      "userStories": [
+        "As a [user type], I want to [action] so that [benefit]"
+      ],
+      "technicalComponents": [
+        "Component/technology needed"
+      ]
+    }
+  ]
+}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -38,25 +49,20 @@ serve(async (req) => {
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
-          { 
-            role: 'user', 
-            content: JSON.stringify({
-              description,
-              breakdown: breakdown.features
-            }, null, 2)
-          }
+          { role: 'user', content: description }
         ],
+        response_format: { type: "json_object" }
       }),
     });
 
     const data = await response.json();
-    const generatedText = data.choices[0].message.content;
+    const breakdown = JSON.parse(data.choices[0].message.content);
 
-    return new Response(JSON.stringify({ generatedText }), {
+    return new Response(JSON.stringify(breakdown), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in generate-estimate function:', error);
+    console.error('Error in generate-breakdown function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
