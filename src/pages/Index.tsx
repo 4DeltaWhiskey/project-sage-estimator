@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info, LogOut, LogIn } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -25,20 +25,77 @@ const Index = () => {
   const [projectDescription, setProjectDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
-  const {
-    toast
-  } = useToast();
+  const [session, setSession] = useState<any>(null);
+  const [recentPrompts, setRecentPrompts] = useState<{ id: string; description: string; created_at: string; }[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchRecentPrompts();
+    }
+  }, [session]);
+
+  const fetchRecentPrompts = async () => {
+    const { data, error } = await supabase
+      .from('user_prompts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error) {
+      console.error('Error fetching recent prompts:', error);
+      return;
+    }
+
+    setRecentPrompts(data);
+  };
+
+  const savePrompt = async (description: string) => {
+    if (!session?.user) return;
+
+    const { error } = await supabase
+      .from('user_prompts')
+      .insert([{ description, user_id: session.user.id }]);
+
+    if (error) {
+      console.error('Error saving prompt:', error);
+      return;
+    }
+
+    await fetchRecentPrompts();
+  };
+
   const generateBreakdown = async () => {
     if (!projectDescription.trim()) {
       toast({
         title: "Description Required",
         description: "Please provide a project description to generate a breakdown.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
+
     setLoading(true);
     try {
+      // Save the prompt if user is authenticated
+      if (session?.user) {
+        await savePrompt(projectDescription);
+      }
+
       const {
         data,
         error
@@ -79,23 +136,94 @@ const Index = () => {
       toast({
         title: "Error",
         description: "Failed to generate breakdown. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-gradient-to-br from-rose-100 via-violet-100 to-teal-100 dark:from-rose-950/30 dark:via-violet-950/30 dark:to-teal-950/30">
+
+  const handleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+    });
+    if (error) {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Logout Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-violet-100 to-teal-100 dark:from-rose-950/30 dark:via-violet-950/30 dark:to-teal-950/30">
       <div className="container mx-auto px-4 py-12 max-w-4xl relative">
         <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl rounded-3xl" />
         
         <div className="relative space-y-6 text-center mb-12">
-          <span className="px-4 py-1.5 text-sm font-medium bg-white/10 backdrop-blur-md rounded-full inline-block shadow-xl border border-white/20 hover:border-white/40 transition-colors">Beta</span>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent">AI Requirements Engineer</h1>
+          <div className="flex items-center justify-between">
+            <span className="px-4 py-1.5 text-sm font-medium bg-white/10 backdrop-blur-md rounded-full inline-block shadow-xl border border-white/20 hover:border-white/40 transition-colors">
+              Beta
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={session ? handleLogout : handleLogin}
+              className="flex items-center gap-2"
+            >
+              {session ? (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </>
+              )}
+            </Button>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent">
+            AI Requirements Engineer
+          </h1>
           <p className="text-zinc-600 dark:text-zinc-300 text-lg max-w-2xl mx-auto leading-relaxed">
             Describe your software project, and let our AI generate a detailed work breakdown structure and estimation.
           </p>
         </div>
+
+        {session && recentPrompts.length > 0 && (
+          <Card className="mb-8 p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl">
+            <h3 className="text-lg font-semibold mb-4 text-violet-600 dark:text-violet-400">Recent Prompts</h3>
+            <ScrollArea className="h-[200px]">
+              <div className="space-y-2">
+                {recentPrompts.map((prompt) => (
+                  <button
+                    key={prompt.id}
+                    onClick={() => setProjectDescription(prompt.description)}
+                    className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
+                  >
+                    {prompt.description.length > 100
+                      ? `${prompt.description.slice(0, 100)}...`
+                      : prompt.description}
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </Card>
+        )}
 
         <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-500">
           <div className="space-y-6">
@@ -182,6 +310,8 @@ const Index = () => {
             </ScrollArea>
           </Card>}
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;
