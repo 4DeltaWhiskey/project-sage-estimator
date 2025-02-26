@@ -90,9 +90,7 @@ const Index = () => {
         <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl rounded-3xl" />
         
         <div className="relative space-y-6 text-center mb-12">
-          <span className="px-4 py-1.5 text-sm font-medium bg-white/10 backdrop-blur-md rounded-full inline-block shadow-xl border border-white/20 hover:border-white/40 transition-colors">
-            Project Sage
-          </span>
+          <span className="px-4 py-1.5 text-sm font-medium bg-white/10 backdrop-blur-md rounded-full inline-block shadow-xl border border-white/20 hover:border-white/40 transition-colors">MAKONIS</span>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent">AI Requirements Engineer</h1>
           <p className="text-zinc-600 dark:text-zinc-300 text-lg max-w-2xl mx-auto leading-relaxed">
             Describe your software project, and let our AI generate a detailed work breakdown structure and estimation.
