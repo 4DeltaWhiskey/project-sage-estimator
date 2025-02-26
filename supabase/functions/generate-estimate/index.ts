@@ -17,17 +17,24 @@ serve(async (req) => {
   try {
     const { description, breakdown, hourlyRate = 50 } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager with extensive experience in estimating software development projects.
-    Based on the provided project breakdown and an hourly rate of ${hourlyRate}€, create a detailed estimation including:
-    
-    1. Time estimates for each feature (in days or weeks)
-    2. Team composition needed (roles and number of people)
-    3. Total cost estimation based on ${hourlyRate}€ per hour (8 hours per day, 5 days per week)
-    4. Risk assessment and recommendations
-    5. Timeline breakdown with phases
-    
-    Format the response in a clear, structured manner using markdown. Base your estimates on industry standards and best practices.
-    Include subtotals for each feature and a grand total in Euros.`;
+    const systemPrompt = `You are a senior software project manager. For each feature in the provided breakdown, generate an estimation object with this structure:
+    {
+      "hours": number (estimated hours),
+      "cost": number (hours * hourlyRate),
+      "details": string (brief explanation of the estimate)
+    }
+
+    Return an array of these estimation objects, one for each feature. Format as a JSON object with this structure:
+    {
+      "estimations": [
+        {
+          "hours": 40,
+          "cost": 2000,
+          "details": "Includes setup of authentication system, user roles, and basic security features..."
+        },
+        ...
+      ]
+    }`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,11 +50,12 @@ serve(async (req) => {
             role: 'user', 
             content: JSON.stringify({
               description,
-              breakdown: breakdown.features,
+              features: breakdown.features,
               hourlyRate
             }, null, 2)
           }
         ],
+        response_format: { type: "json_object" },
         temperature: 0.7,
         max_tokens: 2000,
       }),
@@ -60,9 +68,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const generatedText = data.choices[0].message.content;
-
-    return new Response(JSON.stringify({ generatedText }), {
+    return new Response(JSON.stringify(JSON.parse(data.choices[0].message.content)), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

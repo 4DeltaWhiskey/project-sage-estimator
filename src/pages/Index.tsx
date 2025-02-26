@@ -1,17 +1,24 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle2, XCircle, Euro } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface UserStory {
   name: string;
   description: string;
   userStories: string[];
   technicalComponents: string[];
+  estimation?: {
+    hours: number;
+    cost: number;
+    details: string;
+  };
 }
 
 interface Breakdown {
@@ -22,7 +29,6 @@ const Index = () => {
   const [projectDescription, setProjectDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
-  const [estimate, setEstimate] = useState<string | null>(null);
   const { toast } = useToast();
 
   const generateBreakdown = async () => {
@@ -43,49 +49,35 @@ const Index = () => {
 
       if (error) throw error;
 
-      setBreakdown(data);
-      setEstimate(null);
+      // Get estimation for each feature
+      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+        body: { 
+          description: projectDescription, 
+          breakdown: data,
+          hourlyRate: 50
+        }
+      });
+
+      if (estimationError) throw estimationError;
+
+      // Combine breakdown with estimations
+      const enhancedBreakdown = {
+        features: data.features.map((feature: UserStory, index: number) => ({
+          ...feature,
+          estimation: estimationData.estimations[index]
+        }))
+      };
+
+      setBreakdown(enhancedBreakdown);
       toast({
         title: "Breakdown Generated",
-        description: "Please review the breakdown and confirm to get an estimation.",
+        description: "Project breakdown and estimations have been generated.",
       });
     } catch (error) {
       console.error('Error generating breakdown:', error);
       toast({
         title: "Error",
         description: "Failed to generate breakdown. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateEstimate = async () => {
-    if (!breakdown) return;
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-estimate', {
-        body: { 
-          description: projectDescription, 
-          breakdown,
-          hourlyRate: 50
-        }
-      });
-
-      if (error) throw error;
-
-      setEstimate(data.generatedText);
-      toast({
-        title: "Estimate Generated",
-        description: "Your project estimate has been created successfully.",
-      });
-    } catch (error) {
-      console.error('Error generating estimate:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate estimate. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -126,7 +118,7 @@ const Index = () => {
               {loading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                "Generate Work Breakdown"
+                "Generate Work Breakdown & Estimation"
               )}
             </Button>
           </div>
@@ -136,31 +128,40 @@ const Index = () => {
           <Card className="mt-8 p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
             <ScrollArea className="h-[600px] pr-4">
               <div className="prose dark:prose-invert max-w-none">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
-                    Project Breakdown
-                  </h2>
-                  {!estimate && (
-                    <Button
-                      onClick={generateEstimate}
-                      disabled={loading}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Generate Estimate"
-                      )}
-                    </Button>
-                  )}
-                </div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
+                  Project Breakdown & Estimation
+                </h2>
                 
-                <div className="space-y-8">
+                <div className="space-y-8 mt-6">
                   {breakdown.features.map((feature, index) => (
                     <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                      <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
-                        {feature.name}
-                      </h3>
+                      <div className="flex items-start justify-between gap-4">
+                        <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
+                          {feature.name}
+                        </h3>
+                        {feature.estimation && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
+                                  <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                    {feature.estimation.hours}h
+                                  </span>
+                                  <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
+                                    ({feature.estimation.cost}€)
+                                  </span>
+                                  <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-sm">{feature.estimation.details}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                      
                       <p className="text-zinc-600 dark:text-zinc-300 m-0">
                         {feature.description}
                       </p>
@@ -195,46 +196,17 @@ const Index = () => {
                     </div>
                   ))}
                 </div>
-              </div>
-            </ScrollArea>
-          </Card>
-        )}
 
-        {estimate && (
-          <Card className="mt-8 p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-            <ScrollArea className="h-[400px] pr-4">
-              <div className="prose dark:prose-invert max-w-none">
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent mb-6">
-                  Project Estimate
-                </h2>
-                <div className="space-y-6">
-                  <div className="bg-black/5 dark:bg-white/5 rounded-xl p-6">
-                    <div className="whitespace-pre-wrap font-mono text-sm">
-                      {estimate}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-2">
-                      <Euro className="h-5 w-5" />
-                      Hourly Rate: 50€
-                    </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                      Final costs will be calculated based on the actual time spent on development.
-                    </p>
-                  </div>
-
-                  <div className="bg-violet-500/10 dark:bg-violet-500/20 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-violet-600 dark:text-violet-400 mb-4">
-                      Book a Consultation
-                    </h3>
-                    <div className="aspect-video w-full">
-                      <iframe 
-                        src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile"
-                        className="w-full h-full rounded-lg border border-white/20"
-                        allow="camera; microphone; geolocation"
-                      />
-                    </div>
+                <div className="mt-8 bg-violet-500/10 dark:bg-violet-500/20 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-violet-600 dark:text-violet-400 mb-4">
+                    Book a Consultation
+                  </h3>
+                  <div className="aspect-video w-full">
+                    <iframe 
+                      src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile"
+                      className="w-full h-full rounded-lg border border-white/20"
+                      allow="camera; microphone; geolocation"
+                    />
                   </div>
                 </div>
               </div>
