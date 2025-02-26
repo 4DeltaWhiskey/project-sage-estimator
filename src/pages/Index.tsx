@@ -7,6 +7,9 @@ import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info, LogOut, LogIn } from
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
 interface UserStory {
   name: string;
   description: string;
@@ -18,15 +21,22 @@ interface UserStory {
     details: string;
   };
 }
+
 interface Breakdown {
   features: UserStory[];
 }
+
 const Index = () => {
   const [projectDescription, setProjectDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
   const [session, setSession] = useState<any>(null);
   const [recentPrompts, setRecentPrompts] = useState<{ id: string; description: string; created_at: string; }[]>([]);
+  const [authDialog, setAuthDialog] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -91,7 +101,6 @@ const Index = () => {
 
     setLoading(true);
     try {
-      // Save the prompt if user is authenticated
       if (session?.user) {
         await savePrompt(projectDescription);
       }
@@ -106,7 +115,6 @@ const Index = () => {
       });
       if (error) throw error;
 
-      // Get estimation for each feature
       const {
         data: estimationData,
         error: estimationError
@@ -119,7 +127,6 @@ const Index = () => {
       });
       if (estimationError) throw estimationError;
 
-      // Combine breakdown with estimations
       const enhancedBreakdown = {
         features: data.features.map((feature: UserStory, index: number) => ({
           ...feature,
@@ -143,16 +150,38 @@ const Index = () => {
     }
   };
 
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-    });
-    if (error) {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    try {
+      const { error } = isSignUp 
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) throw error;
+
+      if (isSignUp) {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to complete your signup.",
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You've successfully signed in.",
+        });
+      }
+      setAuthDialog(false);
+      setEmail('');
+      setPassword('');
+    } catch (error: any) {
       toast({
-        title: "Login Failed",
+        title: "Authentication Error",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -180,7 +209,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={session ? handleLogout : handleLogin}
+              onClick={session ? handleLogout : () => setAuthDialog(true)}
               className="flex items-center gap-2"
             >
               {session ? (
@@ -310,6 +339,60 @@ const Index = () => {
             </ScrollArea>
           </Card>}
       </div>
+
+      <Dialog open={authDialog} onOpenChange={setAuthDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isSignUp ? 'Create an account' : 'Welcome back'}</DialogTitle>
+            <DialogDescription>
+              {isSignUp 
+                ? 'Sign up to save your prompts and access them anytime' 
+                : 'Sign in to your account to access your saved prompts'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div>
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Button type="submit" className="w-full" disabled={authLoading}>
+                {authLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isSignUp ? (
+                  'Sign Up'
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp
+                  ? 'Already have an account? Sign In'
+                  : "Don't have an account? Sign Up"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
