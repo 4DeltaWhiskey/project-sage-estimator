@@ -232,52 +232,62 @@ const Index = () => {
         await savePrompt(projectDescription);
       }
 
-      const { data, error } = await supabase.functions.invoke('generate-breakdown', {
-        body: {
-          description: projectDescription
-        }
+      const { data: breakdownData, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
+        body: { description: projectDescription }
       });
 
-      if (error) {
-        console.error('Error from generate-breakdown:', error);
-        throw error;
+      console.log('Breakdown response:', { data: breakdownData, error: breakdownError });
+
+      if (breakdownError) {
+        console.error('Error from generate-breakdown:', breakdownError);
+        throw breakdownError;
       }
 
-      if (!data) {
-        throw new Error('No data returned from generate-breakdown');
+      if (!breakdownData || !breakdownData.features) {
+        console.error('Invalid breakdown data:', breakdownData);
+        throw new Error('Failed to generate valid project breakdown');
       }
 
       const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
-          breakdown: data,
+          breakdown: breakdownData,
           hourlyRate: 50
         }
       });
+
+      console.log('Estimation response:', { data: estimationData, error: estimationError });
 
       if (estimationError) {
         console.error('Error from generate-estimate:', estimationError);
         throw estimationError;
       }
 
+      if (!estimationData || !Array.isArray(estimationData.estimations)) {
+        console.error('Invalid estimation data:', estimationData);
+        throw new Error('Failed to generate valid estimations');
+      }
+
       const enhancedBreakdown: Breakdown = {
-        features: data.features.map((feature: UserStory, index: number) => ({
+        features: breakdownData.features.map((feature: UserStory, index: number) => ({
           ...feature,
           estimation: estimationData.estimations[index]
         })),
-        technicalComponents: data.technicalComponents || []
+        technicalComponents: breakdownData.technicalComponents || []
       };
+      
+      console.log('Enhanced breakdown:', enhancedBreakdown);
       
       setBreakdown(enhancedBreakdown);
       toast({
         title: "Breakdown Generated",
         description: "Project breakdown and estimations have been generated."
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating breakdown:', error);
       toast({
         title: "Error",
-        description: "Failed to generate breakdown. Please try again.",
+        description: error.message || "Failed to generate breakdown. Please try again.",
         variant: "destructive",
       });
     } finally {
