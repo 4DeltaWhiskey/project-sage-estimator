@@ -233,49 +233,49 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            {session && recentPrompts.length > 0 && (
-              <Card className="mb-8 p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl">
-                <h3 className="text-lg font-semibold mb-4 text-violet-600 dark:text-violet-400">Recent Prompts</h3>
-                <ScrollArea className="h-[200px]">
-                  <div className="space-y-2">
-                    {recentPrompts.map((prompt) => (
-                      <button
-                        key={prompt.id}
-                        onClick={() => setProjectDescription(prompt.description)}
-                        className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
-                      >
-                        {prompt.description.length > 100
-                          ? `${prompt.description.slice(0, 100)}...`
-                          : prompt.description}
-                      </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </Card>
-            )}
-
-            <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-500">
-              <div className="space-y-6">
-                <Textarea 
-                  placeholder="Describe your project in detail... (e.g., I want to build a task management application with user authentication, real-time updates, and team collaboration features)" 
-                  value={projectDescription} 
-                  onChange={e => setProjectDescription(e.target.value)} 
-                  className="min-h-[200px] resize-none bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 rounded-xl placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:ring-violet-500/50 dark:focus-visible:ring-violet-400/50" 
-                />
-                <Button 
-                  onClick={generateBreakdown} 
-                  disabled={loading} 
-                  className="w-full group relative overflow-hidden bg-gradient-to-r from-rose-500 via-violet-500 to-teal-500 hover:from-rose-400 hover:via-violet-400 hover:to-teal-400 text-white rounded-xl py-6 transition-all duration-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100"
-                >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Generate Work Breakdown & Estimation"}
-                </Button>
-              </div>
+        <div className="space-y-8">
+          {session && recentPrompts.length > 0 && (
+            <Card className="p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl">
+              <h3 className="text-lg font-semibold mb-4 text-violet-600 dark:text-violet-400">Recent Prompts</h3>
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-2">
+                  {recentPrompts.map((prompt) => (
+                    <button
+                      key={prompt.id}
+                      onClick={() => setProjectDescription(prompt.description)}
+                      className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
+                    >
+                      {prompt.description.length > 100
+                        ? `${prompt.description.slice(0, 100)}...`
+                        : prompt.description}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </Card>
+          )}
 
-            {breakdown && (
-              <Card className="mt-8 p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
+          <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-500">
+            <div className="space-y-6">
+              <Textarea 
+                placeholder="Describe your project in detail... (e.g., I want to build a task management application with user authentication, real-time updates, and team collaboration features)" 
+                value={projectDescription} 
+                onChange={e => setProjectDescription(e.target.value)} 
+                className="min-h-[200px] resize-none bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 rounded-xl placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:ring-violet-500/50 dark:focus-visible:ring-violet-400/50" 
+              />
+              <Button 
+                onClick={generateBreakdown} 
+                disabled={loading} 
+                className="w-full group relative overflow-hidden bg-gradient-to-r from-rose-500 via-violet-500 to-teal-500 hover:from-rose-400 hover:via-violet-400 hover:to-teal-400 text-white rounded-xl py-6 transition-all duration-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100"
+              >
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Generate Work Breakdown & Estimation"}
+              </Button>
+            </div>
+          </Card>
+
+          {breakdown && (
+            <>
+              <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
                 <ScrollArea className="h-[800px] pr-4">
                   <div className="prose dark:prose-invert max-w-none">
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
@@ -343,23 +343,21 @@ const Index = () => {
                   </div>
                 </ScrollArea>
               </Card>
-            )}
-          </div>
 
-          <div className="lg:sticky lg:top-8 h-fit">
-            <Card className="p-6 backdrop-blur-xl bg-violet-500/10 dark:bg-violet-500/20 rounded-2xl border border-white/20">
-              <h3 className="text-lg font-semibold text-violet-600 dark:text-violet-400 mb-4">
-                Book a Consultation
-              </h3>
-              <div className="aspect-video w-full">
-                <iframe 
-                  src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile" 
-                  className="w-full h-full rounded-lg border border-white/20" 
-                  allow="camera; microphone; geolocation" 
-                />
-              </div>
-            </Card>
-          </div>
+              <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent mb-6">
+                  Book a Consultation
+                </h3>
+                <div className="aspect-video w-full">
+                  <iframe 
+                    src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile" 
+                    className="w-full h-full rounded-lg border border-white/20" 
+                    allow="camera; microphone; geolocation" 
+                  />
+                </div>
+              </Card>
+            </>
+          )}
         </div>
 
         <Dialog open={authDialog} onOpenChange={setAuthDialog}>
