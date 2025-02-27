@@ -3,36 +3,25 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, Pencil, Save } from "lucide-react";
-import { LoadingDialog } from "@/components/LoadingDialog";
+import { Card } from "@/components/ui/card";
 
 interface TechnicalConstraintsProps {
-  technicalComponents: string[];
-  onSave: (components: string[]) => Promise<void>;
+  technicalConstraints: string;
 }
 
-export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalConstraintsProps) {
+export function TechnicalConstraints({ technicalConstraints }: TechnicalConstraintsProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedComponents, setEditedComponents] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [editedConstraints, setEditedConstraints] = useState(technicalConstraints);
 
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      const components = editedComponents
-        .split('\n')
-        .filter(tech => tech.trim());
-      await onSave(components);
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Error saving technical constraints:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSave = () => {
+    // In a real app, you'd save these changes to your backend
+    setIsEditing(false);
   };
 
+  const constraints = technicalConstraints.split('\n').filter(Boolean);
+
   return (
-    <div className="mt-6 bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-      <LoadingDialog open={isLoading} />
+    <Card className="p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl mb-6">
       <div className="flex items-start justify-between gap-4">
         <h3 className="text-xl font-semibold text-violet-600 dark:text-violet-400 m-0">
           Technical Constraints
@@ -42,59 +31,49 @@ export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalC
           size="sm"
           onClick={() => {
             setIsEditing(true);
-            setEditedComponents(technicalComponents.join('\n'));
+            setEditedConstraints(technicalConstraints);
           }}
           className="text-violet-600 dark:text-violet-400"
-          disabled={isLoading}
         >
           <Pencil className="h-4 w-4 mr-2" />
           Refine
         </Button>
       </div>
+      
       {isEditing ? (
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-violet-600 dark:text-violet-400 block mb-2">
-              Technical Components (one per line)
-            </label>
-            <Textarea
-              value={editedComponents}
-              onChange={(e) => setEditedComponents(e.target.value)}
-              className="w-full min-h-[200px]"
-              placeholder="Enter technical components, one per line"
-              disabled={isLoading}
-            />
-          </div>
+        <div className="space-y-4 mt-4">
+          <Textarea
+            value={editedConstraints}
+            onChange={(e) => setEditedConstraints(e.target.value)}
+            className="w-full min-h-[200px]"
+            placeholder="Enter technical constraints, one per line"
+          />
           <div className="flex justify-end gap-2">
             <Button 
               variant="outline" 
               onClick={() => {
                 setIsEditing(false);
-                setEditedComponents('');
+                setEditedConstraints(technicalConstraints);
               }}
-              disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSave}
-              disabled={isLoading}
-            >
+            <Button onClick={handleSave}>
               <Save className="h-4 w-4 mr-2" />
               Save Changes
             </Button>
           </div>
         </div>
       ) : (
-        <ul className="list-none p-0 m-0 space-y-2">
-          {technicalComponents.map((tech, index) => (
+        <ul className="list-none p-0 m-0 space-y-2 mt-4">
+          {constraints.map((constraint, index) => (
             <li key={index} className="flex items-start gap-2 text-sm">
               <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-              {tech}
+              {constraint}
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }

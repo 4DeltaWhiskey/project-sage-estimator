@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { LogOut, LogIn } from "lucide-react";
@@ -19,6 +20,31 @@ const loadingMessages = [
   "Outlining technical constraints...",
   "Estimating development time...",
   "Preparing the final breakdown...",
+  "🤔 Consulting with our AI experts...",
+  "🎲 Rolling dice to determine project complexity...",
+  "🔮 Gazing into our crystal ball for accurate estimates...",
+  "🧮 Teaching our abacus quantum computing...",
+  "🤖 Negotiating with the AI about working hours...",
+  "🎯 Calculating precision with a banana for scale...",
+  "📊 Converting coffee cups to code quality...",
+  "🎪 Juggling features and deadlines...",
+  "🎭 Performing interpretive dance to understand requirements...",
+  "🎪 Training monkeys to write clean code...",
+  "🎨 Painting your requirements in abstract art...",
+  "🎮 Debugging with a rubber duck committee...",
+  "🌟 Consulting the programming zodiac signs...",
+  "🎓 Sending AI to coding boot camp...",
+  "🎭 Rehearsing the code's Shakespeare monologue...",
+  "🎪 Teaching elephants to write unit tests...",
+  "🎯 Measuring complexity in unicorn points...",
+  "🎲 Playing rock, paper, scissors with bugs...",
+  "🎨 Color-coding your requirements in rainbow...",
+  "🎭 Hosting a ted talk for your code snippets...",
+  "🤖 Running code through our quantum toaster...",
+  "🎪 Teaching cats to review pull requests...",
+  "🎯 Calculating estimates in dog years...",
+  "🎲 Consulting with our team of AI philosophers...",
+  "🎨 Drawing blueprints with digital crayons..."
 ];
 
 const Index = () => {
@@ -51,6 +77,16 @@ const Index = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isLoading, loadingMessages.length]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -103,11 +139,23 @@ const Index = () => {
           setRecentPrompts={setRecentPrompts}
         />
 
-        {breakdown && userStories ? (
+        {isLoading && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-700 dark:border-violet-400 mx-auto mb-4"></div>
+              <p className="text-lg text-violet-700 dark:text-violet-400">
+                {loadingMessages[loadingMessageIndex]}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {breakdown && userStories && !isLoading ? (
           <>
             <ProjectSummary
               projectName={projectName}
               projectDescription={projectDescription}
+              features={userStories}
             />
             <TechnicalConstraints technicalConstraints={technicalConstraints} />
             <Feature features={features} />
@@ -120,7 +168,7 @@ const Index = () => {
               setIsExporting={setIsExporting}
             />
           </>
-        ) : (
+        ) : !isLoading && (
           <RecentPrompts
             recentPrompts={recentPrompts}
             setProjectDescription={setProjectDescription}
