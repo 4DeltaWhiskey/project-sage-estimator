@@ -15,7 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const { description, currentFeatures } = await req.json();
+    const { description } = await req.json();
 
     if (!openAIApiKey) {
       console.error('OpenAI API key is not configured');
@@ -59,7 +59,7 @@ Format the response as a JSON object with this exact structure:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: description }
@@ -97,8 +97,6 @@ Format the response as a JSON object with this exact structure:
     return new Response(
       JSON.stringify({
         error: error.message || 'Failed to generate project breakdown',
-        features: [],
-        technicalComponents: []
       }),
       {
         status: 500,

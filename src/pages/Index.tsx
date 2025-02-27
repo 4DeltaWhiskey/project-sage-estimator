@@ -8,7 +8,6 @@ import { ProjectSummary } from "@/components/ProjectSummary";
 import { TechnicalConstraints } from "@/components/TechnicalConstraints";
 import { Feature } from "@/components/Feature";
 import { AuthDialog } from "@/components/AuthDialog";
-import { LoadingDialog } from "@/components/LoadingDialog";
 import { RecentPrompts } from "@/components/RecentPrompts";
 import { ProjectInput } from "@/components/ProjectInput";
 import { ConsultationSection } from "@/components/ConsultationSection";
@@ -233,27 +232,33 @@ const Index = () => {
         await savePrompt(projectDescription);
       }
 
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('generate-breakdown', {
+      const { data, error } = await supabase.functions.invoke('generate-breakdown', {
         body: {
           description: projectDescription
         }
       });
-      if (error) throw error;
 
-      const {
-        data: estimationData,
-        error: estimationError
-      } = await supabase.functions.invoke('generate-estimate', {
+      if (error) {
+        console.error('Error from generate-breakdown:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from generate-breakdown');
+      }
+
+      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
           breakdown: data,
           hourlyRate: 50
         }
       });
-      if (estimationError) throw estimationError;
+
+      if (estimationError) {
+        console.error('Error from generate-estimate:', estimationError);
+        throw estimationError;
+      }
 
       const enhancedBreakdown: Breakdown = {
         features: data.features.map((feature: UserStory, index: number) => ({
@@ -434,8 +439,6 @@ const Index = () => {
           onSubmit={handleAuth}
           isLoading={authLoading}
         />
-
-        <LoadingDialog open={loading} />
       </div>
     </div>
   );
