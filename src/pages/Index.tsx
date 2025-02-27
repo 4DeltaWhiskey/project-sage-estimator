@@ -226,6 +226,11 @@ const Index = () => {
     };
 
     try {
+      toast({
+        title: "Updating Feature",
+        description: "Recalculating time and budget estimation...",
+      });
+
       const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
@@ -247,13 +252,13 @@ const Index = () => {
 
       toast({
         title: "Feature Updated",
-        description: "The feature has been updated and estimation recalculated.",
+        description: "The feature has been updated with new time and budget estimates.",
       });
     } catch (error) {
       console.error('Error updating feature:', error);
       toast({
         title: "Error",
-        description: "Failed to update feature and recalculate estimation.",
+        description: "Failed to update feature and recalculate estimation. Please try again.",
         variant: "destructive",
       });
     }
