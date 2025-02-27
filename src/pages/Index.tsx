@@ -16,11 +16,11 @@ import { ExportSection } from "@/components/ExportSection";
 import { Breakdown, UserStory } from "@/types/project";
 
 const loadingMessages = [
-  "🤔 Consulting with our AI hamsters...",
+  "🤔 Consulting with our AI experts...",
   "🎲 Rolling dice to determine project complexity...",
   "🔮 Gazing into our crystal ball for accurate estimates...",
   "🧮 Teaching our abacus quantum computing...",
-  "���� Negotiating with the AI about working hours...",
+  "🤖 Negotiating with the AI about working hours...",
   "🎯 Calculating precision with a banana for scale...",
   "📊 Converting coffee cups to code quality...",
   "🎪 Juggling features and deadlines...",
@@ -346,7 +346,7 @@ const Index = () => {
         <div className="relative space-y-6 text-center mb-12">
           <div className="flex items-center justify-center">
             <span className="px-4 py-1.5 text-sm font-medium bg-white/10 backdrop-blur-md rounded-full inline-block shadow-xl border border-white/20 hover:border-white/40 transition-colors">
-              Beta
+              Beta Release
             </span>
             <Button
               variant="ghost"
@@ -434,6 +434,8 @@ const Index = () => {
           onSubmit={handleAuth}
           isLoading={authLoading}
         />
+
+        <LoadingDialog open={loading} />
       </div>
     </div>
   );
