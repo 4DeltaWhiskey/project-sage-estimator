@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, LogOut, LogIn, Clock as ClockIcon, Euro as EuroIcon } from "lucide-react";
+import { Loader2, LogOut, LogIn } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectSummary } from "@/components/ProjectSummary";
@@ -422,34 +422,6 @@ const Index = () => {
           {breakdown && (
             <>
               <ProjectSummary features={breakdown.features} />
-
-              <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700 mb-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
-                    Project Summary
-                  </h2>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 bg-violet-500/10 dark:bg-violet-500/20 px-4 py-2 rounded-full">
-                      <ClockIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                      <span className="text-lg font-semibold text-violet-600 dark:text-violet-400">
-                        {calculateTotals(breakdown.features).hours}h
-                      </span>
-                      <span className="text-sm text-violet-600/70 dark:text-violet-400/70">
-                        Total Hours
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-4 py-2 rounded-full">
-                      <EuroIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-                        {calculateTotals(breakdown.features).cost}€
-                      </span>
-                      <span className="text-sm text-emerald-600/70 dark:text-emerald-400/70">
-                        Total Cost
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
 
               <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
                 <ScrollArea className="h-full w-full pr-4">
