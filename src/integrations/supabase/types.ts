@@ -65,7 +65,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      upsert_azure_settings: {
+        Args: {
+          p_user_id: string
+          p_organization: string
+          p_last_project: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
