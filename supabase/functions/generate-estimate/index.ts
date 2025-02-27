@@ -15,44 +15,32 @@ serve(async (req) => {
   }
 
   try {
-    const { description, breakdown, hourlyRate = 50 } = await req.json();
+    const { description, breakdown, hourlyRate } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager. You need to generate a completely new estimation for each feature based on the updated technical constraints. 
-    
-    IMPORTANT: The new estimates should be different from previous ones as they must reflect the impact of the technical changes.
-
-    Your task is to:
-    1. Analyze each feature and its user stories
-    2. Consider how the provided technical components affect the implementation complexity
-    3. Generate accurate estimations taking into account:
-       - Feature complexity and scope
-       - Number and complexity of user stories
-       - Required technical skills and learning curve
-       - Integration complexity with chosen technologies
-       - Testing requirements for the specific tech stack
-       - Development environment setup time
-       - Potential technical risks and mitigation time
-
-    For each feature, generate an estimation object with:
-    {
-      "hours": number (realistic development hours considering technical complexity),
-      "cost": number (hours * hourlyRate),
-      "details": string (explanation focusing on technical implementation factors)
+    if (!openAIApiKey) {
+      console.error('OpenAI API key is not configured');
+      throw new Error('OpenAI API key is not configured');
     }
 
-    Format as a JSON object:
-    {
-      "estimations": [
-        {
-          "hours": number,
-          "cost": number,
-          "details": string
-        },
-        ...
-      ]
-    }`;
+    if (!description || !breakdown || !hourlyRate) {
+      console.error('Missing required parameters');
+      throw new Error('Missing required parameters');
+    }
 
-    console.log('Processing estimation with technical constraints:', breakdown.technicalComponents);
+    console.log('Generating estimates for features:', breakdown.features.map(f => f.name));
+
+    const systemPrompt = `You are a senior software project manager with expertise in estimating software development efforts.
+For each feature in the project breakdown, estimate the development time in hours.
+Consider the technical components required and the complexity of user stories.
+Respond with ONLY the array of estimations, one per feature, in this exact format:
+{
+  "estimations": [
+    {
+      "hours": number,
+      "cost": number (hours * hourlyRate)
+    }
+  ]
+}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -71,32 +59,64 @@ serve(async (req) => {
               features: breakdown.features,
               technicalComponents: breakdown.technicalComponents,
               hourlyRate
-            }, null, 2)
+            })
           }
         ],
-        temperature: 0.8,
-        max_tokens: 2000,
+        temperature: 0.3, // Lower temperature for more consistent estimates
+        max_tokens: 1000,
       }),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to generate project estimate');
+      const error = await response.json();
+      console.error('OpenAI API error:', error);
+      throw new Error('Failed to generate estimates');
     }
 
     const data = await response.json();
-    const estimations = JSON.parse(data.choices[0].message.content);
+    console.log('OpenAI response:', data);
 
-    console.log('Generated new estimations:', estimations);
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response format from OpenAI');
+    }
 
-    return new Response(JSON.stringify(estimations), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Clean up the content and parse the JSON
+    let content = data.choices[0].message.content.trim();
+    content = content.replace(/^```json\s*/, '').replace(/```$/, '');
+    
+    try {
+      const parsedContent = JSON.parse(content);
+      
+      if (!parsedContent.estimations || !Array.isArray(parsedContent.estimations)) {
+        throw new Error('Invalid estimation format: missing estimations array');
+      }
+
+      // Validate each estimation
+      parsedContent.estimations = parsedContent.estimations.map(est => ({
+        hours: Number(est.hours) || 0,
+        cost: Number(est.hours || 0) * hourlyRate
+      }));
+
+      console.log('Final estimations:', parsedContent);
+
+      return new Response(JSON.stringify(parsedContent), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    } catch (parseError) {
+      console.error('Error parsing OpenAI response:', parseError);
+      console.error('Content that failed to parse:', content);
+      throw new Error('Failed to parse OpenAI response as JSON');
+    }
   } catch (error) {
     console.error('Error in generate-estimate function:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to generate project estimate' }),
+      JSON.stringify({
+        estimations: [],
+        error: error.message || 'Failed to generate estimates'
+      }),
       {
-        status: 500,
+        status: 200, // Using 200 to prevent client-side rejection
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
