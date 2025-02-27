@@ -276,70 +276,72 @@ const Index = () => {
           {breakdown && (
             <>
               <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-                <div className="prose dark:prose-invert max-w-none">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
-                    Project Breakdown & Estimation
-                  </h2>
-                  
-                  <div className="space-y-8 mt-6">
-                    {breakdown.features.map((feature, index) => (
-                      <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
-                            {feature.name}
-                          </h3>
-                          {feature.estimation && <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
-                                    <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                    <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                      {feature.estimation.hours}h
-                                    </span>
-                                    <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
-                                      ({feature.estimation.cost}€)
-                                    </span>
-                                    <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p className="text-sm">{feature.estimation.details}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>}
-                        </div>
-                        
-                        <p className="text-zinc-600 dark:text-zinc-300 m-0">
-                          {feature.description}
-                        </p>
-                        
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
-                            User Stories
-                          </h4>
-                          <ul className="list-none p-0 m-0 space-y-2">
-                            {feature.userStories.map((story, storyIndex) => <li key={storyIndex} className="flex items-start gap-2 text-sm">
-                                <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
-                                {story}
-                              </li>)}
-                          </ul>
-                        </div>
+                <ScrollArea className="h-full w-full pr-4">
+                  <div className="prose dark:prose-invert max-w-none">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
+                      Project Breakdown & Estimation
+                    </h2>
+                    
+                    <div className="space-y-8 mt-6">
+                      {breakdown.features.map((feature, index) => (
+                        <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
+                              {feature.name}
+                            </h3>
+                            {feature.estimation && <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
+                                      <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                        {feature.estimation.hours}h
+                                      </span>
+                                      <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
+                                        ({feature.estimation.cost}€)
+                                      </span>
+                                      <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="text-sm">{feature.estimation.details}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>}
+                          </div>
+                          
+                          <p className="text-zinc-600 dark:text-zinc-300 m-0">
+                            {feature.description}
+                          </p>
+                          
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
+                              User Stories
+                            </h4>
+                            <ul className="list-none p-0 m-0 space-y-2">
+                              {feature.userStories.map((story, storyIndex) => <li key={storyIndex} className="flex items-start gap-2 text-sm">
+                                  <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
+                                  {story}
+                                </li>)}
+                            </ul>
+                          </div>
 
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
-                            Technical Components
-                          </h4>
-                          <ul className="list-none p-0 m-0 space-y-2">
-                            {feature.technicalComponents.map((tech, techIndex) => <li key={techIndex} className="flex items-start gap-2 text-sm">
-                                <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-                                {tech}
-                              </li>)}
-                          </ul>
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
+                              Technical Components
+                            </h4>
+                            <ul className="list-none p-0 m-0 space-y-2">
+                              {feature.technicalComponents.map((tech, techIndex) => <li key={techIndex} className="flex items-start gap-2 text-sm">
+                                  <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
+                                  {tech}
+                                </li>)}
+                            </ul>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </ScrollArea>
               </Card>
 
               <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
