@@ -198,7 +198,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-100 via-violet-100 to-teal-100 dark:from-rose-950/30 dark:via-violet-950/30 dark:to-teal-950/30">
-      <div className="container mx-auto px-4 py-12 max-w-4xl relative">
+      <div className="container mx-auto px-4 py-12 max-w-6xl relative">
         <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl rounded-3xl" />
         
         <div className="relative space-y-6 text-center mb-12">
@@ -233,166 +233,189 @@ const Index = () => {
           </p>
         </div>
 
-        {session && recentPrompts.length > 0 && (
-          <Card className="mb-8 p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl">
-            <h3 className="text-lg font-semibold mb-4 text-violet-600 dark:text-violet-400">Recent Prompts</h3>
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-2">
-                {recentPrompts.map((prompt) => (
-                  <button
-                    key={prompt.id}
-                    onClick={() => setProjectDescription(prompt.description)}
-                    className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
-                  >
-                    {prompt.description.length > 100
-                      ? `${prompt.description.slice(0, 100)}...`
-                      : prompt.description}
-                  </button>
-                ))}
-              </div>
-            </ScrollArea>
-          </Card>
-        )}
-
-        <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-500">
-          <div className="space-y-6">
-            <Textarea placeholder="Describe your project in detail... (e.g., I want to build a task management application with user authentication, real-time updates, and team collaboration features)" value={projectDescription} onChange={e => setProjectDescription(e.target.value)} className="min-h-[200px] resize-none bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 rounded-xl placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:ring-violet-500/50 dark:focus-visible:ring-violet-400/50" />
-            <Button onClick={generateBreakdown} disabled={loading} className="w-full group relative overflow-hidden bg-gradient-to-r from-rose-500 via-violet-500 to-teal-500 hover:from-rose-400 hover:via-violet-400 hover:to-teal-400 text-white rounded-xl py-6 transition-all duration-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100">
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Generate Work Breakdown & Estimation"}
-            </Button>
-          </div>
-        </Card>
-
-        {breakdown && <Card className="mt-8 p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-            <ScrollArea className="h-[600px] pr-4">
-              <div className="prose dark:prose-invert max-w-none">
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
-                  Project Breakdown & Estimation
-                </h2>
-                
-                <div className="space-y-8 mt-6">
-                  {breakdown.features.map((feature, index) => <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
-                          {feature.name}
-                        </h3>
-                        {feature.estimation && <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
-                                  <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                  <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                    {feature.estimation.hours}h
-                                  </span>
-                                  <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
-                                    ({feature.estimation.cost}€)
-                                  </span>
-                                  <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">{feature.estimation.details}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>}
-                      </div>
-                      
-                      <p className="text-zinc-600 dark:text-zinc-300 m-0">
-                        {feature.description}
-                      </p>
-                      
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
-                          User Stories
-                        </h4>
-                        <ul className="list-none p-0 m-0 space-y-2">
-                          {feature.userStories.map((story, storyIndex) => <li key={storyIndex} className="flex items-start gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
-                              {story}
-                            </li>)}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
-                          Technical Components
-                        </h4>
-                        <ul className="list-none p-0 m-0 space-y-2">
-                          {feature.technicalComponents.map((tech, techIndex) => <li key={techIndex} className="flex items-start gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-                              {tech}
-                            </li>)}
-                        </ul>
-                      </div>
-                    </div>)}
-                </div>
-
-                <div className="mt-8 bg-violet-500/10 dark:bg-violet-500/20 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-violet-600 dark:text-violet-400 mb-4">
-                    Book a Consultation
-                  </h3>
-                  <div className="aspect-video w-full">
-                    <iframe src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile" className="w-full h-full rounded-lg border border-white/20" allow="camera; microphone; geolocation" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            {session && recentPrompts.length > 0 && (
+              <Card className="mb-8 p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl">
+                <h3 className="text-lg font-semibold mb-4 text-violet-600 dark:text-violet-400">Recent Prompts</h3>
+                <ScrollArea className="h-[200px]">
+                  <div className="space-y-2">
+                    {recentPrompts.map((prompt) => (
+                      <button
+                        key={prompt.id}
+                        onClick={() => setProjectDescription(prompt.description)}
+                        className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
+                      >
+                        {prompt.description.length > 100
+                          ? `${prompt.description.slice(0, 100)}...`
+                          : prompt.description}
+                      </button>
+                    ))}
                   </div>
-                </div>
-              </div>
-            </ScrollArea>
-          </Card>}
-      </div>
+                </ScrollArea>
+              </Card>
+            )}
 
-      <Dialog open={authDialog} onOpenChange={setAuthDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isSignUp ? 'Create an account' : 'Welcome back'}</DialogTitle>
-            <DialogDescription>
-              {isSignUp 
-                ? 'Sign up to save your prompts and access them anytime' 
-                : 'Sign in to your account to access your saved prompts'}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div>
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isSignUp ? (
-                  'Sign Up'
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => setIsSignUp(!isSignUp)}
-              >
-                {isSignUp
-                  ? 'Already have an account? Sign In'
-                  : "Don't have an account? Sign Up"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+            <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-500">
+              <div className="space-y-6">
+                <Textarea 
+                  placeholder="Describe your project in detail... (e.g., I want to build a task management application with user authentication, real-time updates, and team collaboration features)" 
+                  value={projectDescription} 
+                  onChange={e => setProjectDescription(e.target.value)} 
+                  className="min-h-[200px] resize-none bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 rounded-xl placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:ring-violet-500/50 dark:focus-visible:ring-violet-400/50" 
+                />
+                <Button 
+                  onClick={generateBreakdown} 
+                  disabled={loading} 
+                  className="w-full group relative overflow-hidden bg-gradient-to-r from-rose-500 via-violet-500 to-teal-500 hover:from-rose-400 hover:via-violet-400 hover:to-teal-400 text-white rounded-xl py-6 transition-all duration-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100"
+                >
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Generate Work Breakdown & Estimation"}
+                </Button>
+              </div>
+            </Card>
+
+            {breakdown && (
+              <Card className="mt-8 p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
+                <ScrollArea className="h-[800px] pr-4">
+                  <div className="prose dark:prose-invert max-w-none">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
+                      Project Breakdown & Estimation
+                    </h2>
+                    
+                    <div className="space-y-8 mt-6">
+                      {breakdown.features.map((feature, index) => (
+                        <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
+                              {feature.name}
+                            </h3>
+                            {feature.estimation && <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
+                                      <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                        {feature.estimation.hours}h
+                                      </span>
+                                      <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
+                                        ({feature.estimation.cost}€)
+                                      </span>
+                                      <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="text-sm">{feature.estimation.details}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>}
+                          </div>
+                          
+                          <p className="text-zinc-600 dark:text-zinc-300 m-0">
+                            {feature.description}
+                          </p>
+                          
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
+                              User Stories
+                            </h4>
+                            <ul className="list-none p-0 m-0 space-y-2">
+                              {feature.userStories.map((story, storyIndex) => <li key={storyIndex} className="flex items-start gap-2 text-sm">
+                                  <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
+                                  {story}
+                                </li>)}
+                            </ul>
+                          </div>
+
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
+                              Technical Components
+                            </h4>
+                            <ul className="list-none p-0 m-0 space-y-2">
+                              {feature.technicalComponents.map((tech, techIndex) => <li key={techIndex} className="flex items-start gap-2 text-sm">
+                                  <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
+                                  {tech}
+                                </li>)}
+                            </ul>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </ScrollArea>
+              </Card>
+            )}
+          </div>
+
+          <div className="lg:sticky lg:top-8 h-fit">
+            <Card className="p-6 backdrop-blur-xl bg-violet-500/10 dark:bg-violet-500/20 rounded-2xl border border-white/20">
+              <h3 className="text-lg font-semibold text-violet-600 dark:text-violet-400 mb-4">
+                Book a Consultation
+              </h3>
+              <div className="aspect-video w-full">
+                <iframe 
+                  src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile" 
+                  className="w-full h-full rounded-lg border border-white/20" 
+                  allow="camera; microphone; geolocation" 
+                />
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        <Dialog open={authDialog} onOpenChange={setAuthDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{isSignUp ? 'Create an account' : 'Welcome back'}</DialogTitle>
+              <DialogDescription>
+                {isSignUp 
+                  ? 'Sign up to save your prompts and access them anytime' 
+                  : 'Sign in to your account to access your saved prompts'}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Button type="submit" className="w-full" disabled={authLoading}>
+                  {authLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isSignUp ? (
+                    'Sign Up'
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                >
+                  {isSignUp
+                    ? 'Already have an account? Sign In'
+                    : "Don't have an account? Sign Up"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };
