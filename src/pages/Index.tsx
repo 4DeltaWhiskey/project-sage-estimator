@@ -3,28 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info, LogOut, LogIn, Pencil, Save } from "lucide-react";
+import { Loader2, LogOut, LogIn } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-
-interface UserStory {
-  name: string;
-  description: string;
-  userStories: string[];
-  estimation?: {
-    hours: number;
-    cost: number;
-    details: string;
-  };
-}
-
-interface Breakdown {
-  features: UserStory[];
-  technicalComponents: string[];
-}
+import { ProjectSummary } from "@/components/ProjectSummary";
+import { TechnicalConstraints } from "@/components/TechnicalConstraints";
+import { Feature } from "@/components/Feature";
+import { AuthDialog } from "@/components/AuthDialog";
+import { Breakdown, UserStory } from "@/types/project";
 
 const loadingMessages = [
   "🤔 Consulting with our AI hamsters...",
@@ -57,8 +43,6 @@ const Index = () => {
     description: string;
     userStories: string;
   } | null>(null);
-  const [editingTechnicalConstraints, setEditingTechnicalConstraints] = useState(false);
-  const [editedTechnicalComponents, setEditedTechnicalComponents] = useState<string>('');
 
   const { toast } = useToast();
 
@@ -125,47 +109,19 @@ const Index = () => {
     await fetchRecentPrompts();
   };
 
-  const startEditing = (index: number, feature: UserStory) => {
-    setEditingFeature(index);
-    setEditedContent({
-      name: feature.name,
-      description: feature.description,
-      userStories: feature.userStories.join('\n')
-    });
-  };
-
-  const saveEdits = async (index: number) => {
-    if (!editedContent || !breakdown) return;
-
-    const updatedFeatures = [...breakdown.features];
-    updatedFeatures[index] = {
-      ...updatedFeatures[index],
-      name: editedContent.name,
-      description: editedContent.description,
-      userStories: editedContent.userStories.split('\n').filter(story => story.trim())
-    };
-
+  const handleTechnicalComponentsSave = async (components: string[]) => {
     try {
       toast({
         title: "Updating Project",
         description: "Recalculating project breakdown and estimations...",
       });
 
-      const { data: newBreakdown, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
-        body: {
-          description: projectDescription,
-          currentFeatures: updatedFeatures
-        }
-      });
-
-      if (breakdownError) throw breakdownError;
-
       const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
           breakdown: { 
-            features: newBreakdown.features,
-            technicalComponents: newBreakdown.technicalComponents 
+            features: breakdown!.features,
+            technicalComponents: components 
           },
           hourlyRate: 50
         }
@@ -173,69 +129,13 @@ const Index = () => {
 
       if (estimationError) throw estimationError;
 
-      const enhancedBreakdown: Breakdown = {
-        features: newBreakdown.features.map((feature: UserStory, i: number) => ({
+      setBreakdown({
+        features: breakdown!.features.map((feature, i) => ({
           ...feature,
           estimation: estimationData.estimations[i]
         })),
-        technicalComponents: newBreakdown.technicalComponents
-      };
-      
-      setBreakdown(enhancedBreakdown);
-      setEditingFeature(null);
-      setEditedContent(null);
-
-      toast({
-        title: "Project Updated",
-        description: "The project has been updated with consistent technical components.",
+        technicalComponents: components
       });
-    } catch (error) {
-      console.error('Error updating project:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update project and recalculate estimations. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveTechnicalEdits = async () => {
-    if (!breakdown) return;
-
-    try {
-      toast({
-        title: "Updating Project",
-        description: "Recalculating project breakdown and estimations...",
-      });
-
-      const updatedTechnicalComponents = editedTechnicalComponents
-        .split('\n')
-        .filter(tech => tech.trim());
-
-      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
-        body: {
-          description: projectDescription,
-          breakdown: { 
-            features: breakdown.features,
-            technicalComponents: updatedTechnicalComponents 
-          },
-          hourlyRate: 50
-        }
-      });
-
-      if (estimationError) throw estimationError;
-
-      const enhancedBreakdown: Breakdown = {
-        features: breakdown.features.map((feature, i) => ({
-          ...feature,
-          estimation: estimationData.estimations[i]
-        })),
-        technicalComponents: updatedTechnicalComponents
-      };
-
-      setBreakdown(enhancedBreakdown);
-      setEditingTechnicalConstraints(false);
-      setEditedTechnicalComponents('');
 
       toast({
         title: "Project Updated",
@@ -249,6 +149,69 @@ const Index = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleFeatureEdit = (index: number, feature: UserStory) => {
+    setEditingFeature(index);
+    setEditedContent({
+      name: feature.name,
+      description: feature.description,
+      userStories: feature.userStories.join('\n')
+    });
+  };
+
+  const handleFeatureSave = async (index: number) => {
+    if (!editedContent || !breakdown) return;
+
+    const updatedFeatures = [...breakdown.features];
+    updatedFeatures[index] = {
+      ...updatedFeatures[index],
+      name: editedContent.name,
+      description: editedContent.description,
+      userStories: editedContent.userStories.split('\n').filter(story => story.trim())
+    };
+
+    try {
+      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+        body: {
+          description: projectDescription,
+          breakdown: { 
+            features: updatedFeatures,
+            technicalComponents: breakdown.technicalComponents 
+          },
+          hourlyRate: 50
+        }
+      });
+
+      if (estimationError) throw estimationError;
+
+      setBreakdown({
+        features: updatedFeatures.map((feature, i) => ({
+          ...feature,
+          estimation: estimationData.estimations[i]
+        })),
+        technicalComponents: breakdown.technicalComponents
+      });
+      
+      setEditingFeature(null);
+      setEditedContent(null);
+
+      toast({
+        title: "Feature Updated",
+        description: "The feature has been updated with new estimations.",
+      });
+    } catch (error) {
+      console.error('Error updating feature:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update feature. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFeatureEditChange = (field: string, value: string) => {
+    setEditedContent(prev => prev ? { ...prev, [field]: value } : null);
   };
 
   const generateBreakdown = async () => {
@@ -458,6 +421,8 @@ const Index = () => {
 
           {breakdown && (
             <>
+              <ProjectSummary features={breakdown.features} />
+
               <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700 mb-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
@@ -493,168 +458,26 @@ const Index = () => {
                       Project Breakdown & Estimation
                     </h2>
 
-                    <div className="mt-6 bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <h3 className="text-xl font-semibold text-violet-600 dark:text-violet-400 m-0">
-                          Technical Constraints
-                        </h3>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingTechnicalConstraints(true);
-                            setEditedTechnicalComponents(breakdown.technicalComponents.join('\n'));
-                          }}
-                          className="text-violet-600 dark:text-violet-400"
-                        >
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Refine
-                        </Button>
-                      </div>
-                      {editingTechnicalConstraints ? (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium text-violet-600 dark:text-violet-400 block mb-2">
-                              Technical Components (one per line)
-                            </label>
-                            <Textarea
-                              value={editedTechnicalComponents}
-                              onChange={(e) => setEditedTechnicalComponents(e.target.value)}
-                              className="w-full min-h-[200px]"
-                              placeholder="Enter technical components, one per line"
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              onClick={() => {
-                                setEditingTechnicalConstraints(false);
-                                setEditedTechnicalComponents('');
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                            <Button onClick={saveTechnicalEdits}>
-                              <Save className="h-4 w-4 mr-2" />
-                              Save Changes
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <ul className="list-none p-0 m-0 space-y-2">
-                          {breakdown.technicalComponents.map((tech, index) => (
-                            <li key={index} className="flex items-start gap-2 text-sm">
-                              <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-                              {tech}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+                    <TechnicalConstraints
+                      technicalComponents={breakdown.technicalComponents}
+                      onSave={handleTechnicalComponentsSave}
+                    />
                     
                     <div className="space-y-8 mt-6">
                       {breakdown.features.map((feature, index) => (
                         <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                          {editingFeature === index ? (
-                            <div className="space-y-4">
-                              <Input
-                                value={editedContent?.name}
-                                onChange={(e) => setEditedContent(prev => ({ ...prev!, name: e.target.value }))}
-                                className="font-semibold text-xl w-full"
-                                placeholder="Feature name"
-                              />
-                              <Textarea
-                                value={editedContent?.description}
-                                onChange={(e) => setEditedContent(prev => ({ ...prev!, description: e.target.value }))}
-                                className="w-full"
-                                placeholder="Feature description"
-                              />
-                              <div>
-                                <label className="text-sm font-medium text-violet-600 dark:text-violet-400 block mb-2">
-                                  User Stories (one per line)
-                                </label>
-                                <Textarea
-                                  value={editedContent?.userStories}
-                                  onChange={(e) => setEditedContent(prev => ({ ...prev!, userStories: e.target.value }))}
-                                  className="w-full"
-                                  placeholder="Enter user stories, one per line"
-                                />
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  onClick={() => {
-                                    setEditingFeature(null);
-                                    setEditedContent(null);
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button onClick={() => saveEdits(index)}>
-                                  <Save className="h-4 w-4 mr-2" />
-                                  Save Changes
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex items-start justify-between gap-4">
-                                <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
-                                  {feature.name}
-                                </h3>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => startEditing(index, feature)}
-                                    className="text-violet-600 dark:text-violet-400"
-                                  >
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Refine
-                                  </Button>
-                                  {feature.estimation && (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
-                                            <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                              {feature.estimation.hours}h
-                                            </span>
-                                            <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
-                                              ({feature.estimation.cost}€)
-                                            </span>
-                                            <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="max-w-xs">
-                                          <p className="text-sm">{feature.estimation.details}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              <p className="text-zinc-600 dark:text-zinc-300 m-0">
-                                {feature.description}
-                              </p>
-                              
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
-                                  User Stories
-                                </h4>
-                                <ul className="list-none p-0 m-0 space-y-2">
-                                  {feature.userStories.map((story, storyIndex) => (
-                                    <li key={storyIndex} className="flex items-start gap-2 text-sm">
-                                      <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
-                                      {story}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </>
-                          )}
+                          <Feature
+                            feature={feature}
+                            isEditing={editingFeature === index}
+                            editedContent={editedContent}
+                            onStartEdit={() => handleFeatureEdit(index, feature)}
+                            onCancelEdit={() => {
+                              setEditingFeature(null);
+                              setEditedContent(null);
+                            }}
+                            onSaveEdit={() => handleFeatureSave(index)}
+                            onEditChange={handleFeatureEditChange}
+                          />
                         </div>
                       ))}
                     </div>
@@ -678,59 +501,18 @@ const Index = () => {
           )}
         </div>
 
-        <Dialog open={authDialog} onOpenChange={setAuthDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{isSignUp ? 'Create an account' : 'Welcome back'}</DialogTitle>
-              <DialogDescription>
-                {isSignUp 
-                  ? 'Sign up to save your prompts and access them anytime' 
-                  : 'Sign in to your account to access your saved prompts'}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div>
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Button type="submit" className="w-full" disabled={authLoading}>
-                  {authLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isSignUp ? (
-                    'Sign Up'
-                  ) : (
-                    'Sign In'
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                >
-                  {isSignUp
-                    ? 'Already have an account? Sign In'
-                    : "Don't have an account? Sign Up"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <AuthDialog
+          isOpen={authDialog}
+          onOpenChange={setAuthDialog}
+          isSignUp={isSignUp}
+          onSignUpToggle={() => setIsSignUp(!isSignUp)}
+          email={email}
+          onEmailChange={setEmail}
+          password={password}
+          onPasswordChange={setPassword}
+          onSubmit={handleAuth}
+          isLoading={authLoading}
+        />
       </div>
     </div>
   );
