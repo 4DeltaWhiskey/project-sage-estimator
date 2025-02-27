@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { LogOut, LogIn } from "lucide-react";
@@ -232,56 +231,54 @@ const Index = () => {
         await savePrompt(projectDescription);
       }
 
-      const { data: breakdownData, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
+      const { data: breakdownResponse, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
         body: { description: projectDescription }
       });
 
-      console.log('Breakdown response:', { data: breakdownData, error: breakdownError });
+      console.log('Breakdown response:', { data: breakdownResponse, error: breakdownError });
 
-      if (breakdownError) {
-        console.error('Error from generate-breakdown:', breakdownError);
-        throw breakdownError;
+      if (breakdownError || breakdownResponse?.error) {
+        throw new Error(breakdownResponse?.error || breakdownError.message || 'Failed to generate project breakdown');
       }
 
-      if (!breakdownData || !breakdownData.features) {
-        console.error('Invalid breakdown data:', breakdownData);
-        throw new Error('Failed to generate valid project breakdown');
+      if (!breakdownResponse || !breakdownResponse.features || !Array.isArray(breakdownResponse.features)) {
+        console.error('Invalid breakdown response:', breakdownResponse);
+        throw new Error('Invalid project breakdown format');
       }
 
-      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+      const { data: estimationResponse, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
-          breakdown: breakdownData,
+          breakdown: breakdownResponse,
           hourlyRate: 50
         }
       });
 
-      console.log('Estimation response:', { data: estimationData, error: estimationError });
+      console.log('Estimation response:', { data: estimationResponse, error: estimationError });
 
-      if (estimationError) {
-        console.error('Error from generate-estimate:', estimationError);
-        throw estimationError;
+      if (estimationError || estimationResponse?.error) {
+        throw new Error(estimationResponse?.error || estimationError.message || 'Failed to generate estimates');
       }
 
-      if (!estimationData || !Array.isArray(estimationData.estimations)) {
-        console.error('Invalid estimation data:', estimationData);
-        throw new Error('Failed to generate valid estimations');
+      if (!estimationResponse || !estimationResponse.estimations || !Array.isArray(estimationResponse.estimations)) {
+        console.error('Invalid estimation response:', estimationResponse);
+        throw new Error('Invalid estimation format');
       }
 
       const enhancedBreakdown: Breakdown = {
-        features: breakdownData.features.map((feature: UserStory, index: number) => ({
+        features: breakdownResponse.features.map((feature: UserStory, index: number) => ({
           ...feature,
-          estimation: estimationData.estimations[index]
+          estimation: estimationResponse.estimations[index]
         })),
-        technicalComponents: breakdownData.technicalComponents || []
+        technicalComponents: breakdownResponse.technicalComponents || []
       };
       
       console.log('Enhanced breakdown:', enhancedBreakdown);
       
       setBreakdown(enhancedBreakdown);
       toast({
-        title: "Breakdown Generated",
-        description: "Project breakdown and estimations have been generated."
+        title: "Success",
+        description: "Project breakdown and estimations have been generated.",
       });
     } catch (error: any) {
       console.error('Error generating breakdown:', error);
