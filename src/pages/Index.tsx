@@ -217,8 +217,6 @@ const Index = () => {
     if (!editedContent) return;
 
     const updatedFeatures = [...(breakdown?.features || [])];
-    const originalTechnicalComponents = updatedFeatures[index].technicalComponents;
-    
     updatedFeatures[index] = {
       ...updatedFeatures[index],
       name: editedContent.name,
@@ -230,38 +228,20 @@ const Index = () => {
     try {
       toast({
         title: "Updating Feature",
-        description: "Analyzing technical dependencies and recalculating estimates...",
+        description: "Recalculating time and budget estimation...",
       });
-
-      const newTechnicalComponents = updatedFeatures[index].technicalComponents.filter(
-        tech => !originalTechnicalComponents.includes(tech)
-      );
-
-      const shouldRecalculateAll = newTechnicalComponents.length > 0;
 
       const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
-          breakdown: { features: shouldRecalculateAll ? updatedFeatures : [updatedFeatures[index]] },
-          hourlyRate: 50,
-          allFeatures: shouldRecalculateAll
+          breakdown: { features: [updatedFeatures[index]] },
+          hourlyRate: 50
         }
       });
 
       if (estimationError) throw estimationError;
 
-      if (shouldRecalculateAll) {
-        updatedFeatures.forEach((feature, idx) => {
-          feature.estimation = estimationData.estimations[idx];
-        });
-
-        toast({
-          title: "Technical Dependencies Updated",
-          description: `New technology detected: ${newTechnicalComponents.join(", ")}. All features have been re-estimated.`,
-        });
-      } else {
-        updatedFeatures[index].estimation = estimationData.estimations[0];
-      }
+      updatedFeatures[index].estimation = estimationData.estimations[0];
 
       setBreakdown({
         features: updatedFeatures
@@ -270,12 +250,10 @@ const Index = () => {
       setEditingFeature(null);
       setEditedContent(null);
 
-      if (estimationData.technicalConsiderations?.impactAnalysis) {
-        toast({
-          title: "Technical Impact Analysis",
-          description: estimationData.technicalConsiderations.impactAnalysis,
-        });
-      }
+      toast({
+        title: "Feature Updated",
+        description: "The feature has been updated with new time and budget estimates.",
+      });
     } catch (error) {
       console.error('Error updating feature:', error);
       toast({

@@ -15,37 +15,25 @@ serve(async (req) => {
   }
 
   try {
-    const { description, breakdown, hourlyRate = 50, allFeatures = false } = await req.json();
+    const { description, breakdown, hourlyRate = 50 } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager and technical architect. Analyze the provided features and their technical components.
-
-    Key responsibilities:
-    1. If a feature introduces a new technology or framework, consider its impact on other features
-    2. Identify shared technical dependencies across features
-    3. Adjust time estimates based on technology reuse and shared infrastructure
-    4. Consider setup and integration time for new technologies
-    5. Account for potential refactoring needed in other features
-
-    For each feature, generate an estimation object with:
+    const systemPrompt = `You are a senior software project manager. For each feature in the provided breakdown, generate an estimation object with this structure:
     {
       "hours": number (estimated hours),
       "cost": number (hours * hourlyRate),
-      "details": string (explanation including technology considerations and dependencies)
+      "details": string (brief explanation of the estimate)
     }
 
-    Format response as:
+    Return an array of these estimation objects, one for each feature. Format as a JSON object with this structure:
     {
       "estimations": [
         {
           "hours": 40,
           "cost": 2000,
-          "details": "Includes initial setup of X technology which will benefit feature Y..."
-        }
-      ],
-      "technicalConsiderations": {
-        "sharedTechnologies": ["list of technologies that affect multiple features"],
-        "impactAnalysis": "Brief analysis of cross-feature technical impacts"
-      }
+          "details": "Includes setup of authentication system, user roles, and basic security features..."
+        },
+        ...
+      ]
     }`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -55,15 +43,14 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
             content: JSON.stringify({
               description,
-              features: allFeatures ? breakdown.features : breakdown.features[0],
-              allFeatures: breakdown.features,
+              features: breakdown.features,
               hourlyRate
             }, null, 2)
           }
