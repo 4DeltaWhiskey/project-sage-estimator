@@ -17,34 +17,40 @@ serve(async (req) => {
   try {
     const { description, breakdown, hourlyRate = 50, allFeatures = false } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager and technical architect. Analyze the provided features and their technical components.
+    const systemPrompt = `You are a senior software project manager and technical architect with deep expertise in software estimation. Conduct a thorough analysis of the provided features and their technical components.
 
-    Key responsibilities:
-    1. If a feature introduces a new technology or framework, consider its impact on other features
-    2. Identify shared technical dependencies across features
-    3. Adjust time estimates based on technology reuse and shared infrastructure
-    4. Consider setup and integration time for new technologies
-    5. Account for potential refactoring needed in other features
+    Your analysis should include:
+    1. Detailed technical dependencies between features
+    2. Comprehensive architectural considerations
+    3. In-depth analysis of development complexity
+    4. Infrastructure and scalability requirements
+    5. Technical debt and maintainability factors
+    6. Security and compliance implications
+    7. Testing and quality assurance requirements
+    8. Integration complexity with existing systems
+    9. Performance optimization needs
+    10. Future scalability considerations
 
-    For each feature, generate an estimation object with:
+    For each feature, provide a detailed estimation object with:
     {
-      "hours": number (estimated hours),
+      "hours": number (estimated development hours),
       "cost": number (hours * hourlyRate),
-      "details": string (explanation including technology considerations and dependencies)
+      "details": string (comprehensive explanation of the estimate including all technical considerations)
     }
 
     Format response as:
     {
       "estimations": [
         {
-          "hours": 40,
-          "cost": 2000,
-          "details": "Includes initial setup of X technology which will benefit feature Y..."
+          "hours": number,
+          "cost": number,
+          "details": string
         }
       ],
       "technicalConsiderations": {
-        "sharedTechnologies": ["list of technologies that affect multiple features"],
-        "impactAnalysis": "Brief analysis of cross-feature technical impacts"
+        "sharedTechnologies": ["detailed list of technologies affecting multiple features"],
+        "impactAnalysis": "In-depth analysis of cross-feature technical impacts and architectural considerations",
+        "recommendations": "Strategic technical recommendations for implementation"
       }
     }`;
 
@@ -55,7 +61,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
@@ -70,7 +76,7 @@ serve(async (req) => {
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 4000,
       }),
     });
 
@@ -81,6 +87,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log('Estimation response:', data); // Added for debugging
     return new Response(JSON.stringify(JSON.parse(data.choices[0].message.content)), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
