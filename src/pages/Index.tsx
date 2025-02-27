@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, LogOut, LogIn, FileSpreadsheet, Github, CloudUpload } from "lucide-react";
+import { LogOut, LogIn } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectSummary } from "@/components/ProjectSummary";
 import { TechnicalConstraints } from "@/components/TechnicalConstraints";
 import { Feature } from "@/components/Feature";
 import { AuthDialog } from "@/components/AuthDialog";
+import { LoadingDialog } from "@/components/LoadingDialog";
+import { RecentPrompts } from "@/components/RecentPrompts";
+import { ProjectInput } from "@/components/ProjectInput";
+import { ConsultationSection } from "@/components/ConsultationSection";
+import { ExportSection } from "@/components/ExportSection";
 import { Breakdown, UserStory } from "@/types/project";
 
 const loadingMessages = [
@@ -17,7 +19,7 @@ const loadingMessages = [
   "🎲 Rolling dice to determine project complexity...",
   "🔮 Gazing into our crystal ball for accurate estimates...",
   "🧮 Teaching our abacus quantum computing...",
-  "🤖 Negotiating with the AI about working hours...",
+  "���� Negotiating with the AI about working hours...",
   "🎯 Calculating precision with a banana for scale...",
   "📊 Converting coffee cups to code quality...",
   "🎪 Juggling features and deadlines...",
@@ -374,167 +376,47 @@ const Index = () => {
 
         <div className="space-y-8">
           {session && recentPrompts.length > 0 && (
-            <Card className="p-6 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl">
-              <h3 className="text-lg font-semibold mb-4 text-violet-600 dark:text-violet-400">Recent Prompts</h3>
-              <ScrollArea className="h-[200px]">
-                <div className="space-y-2">
-                  {recentPrompts.map((prompt) => (
-                    <button
-                      key={prompt.id}
-                      onClick={() => setProjectDescription(prompt.description)}
-                      className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
-                    >
-                      {prompt.description.length > 100
-                        ? `${prompt.description.slice(0, 100)}...`
-                        : prompt.description}
-                    </button>
-                  ))}
-                </div>
-              </ScrollArea>
-            </Card>
+            <RecentPrompts
+              prompts={recentPrompts}
+              onSelectPrompt={setProjectDescription}
+            />
           )}
 
-          <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-500">
-            <div className="space-y-6">
-              <Textarea 
-                placeholder="Describe your project in detail... (e.g., I want to build a task management application with user authentication, real-time updates, and team collaboration features)" 
-                value={projectDescription} 
-                onChange={e => setProjectDescription(e.target.value)} 
-                className="min-h-[200px] resize-none bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 rounded-xl placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:ring-violet-500/50 dark:focus-visible:ring-violet-400/50" 
-              />
-              <Button 
-                onClick={generateBreakdown} 
-                disabled={loading} 
-                className="w-full group relative overflow-hidden bg-gradient-to-r from-rose-500 via-violet-500 to-teal-500 hover:from-rose-400 hover:via-violet-400 hover:to-teal-400 text-white rounded-xl py-6 transition-all duration-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="animate-fade-in">{loadingMessages[loadingMessageIndex]}</span>
-                  </div>
-                ) : (
-                  "Generate Work Breakdown & Estimation"
-                )}
-              </Button>
-            </div>
-          </Card>
+          <ProjectInput
+            projectDescription={projectDescription}
+            onDescriptionChange={setProjectDescription}
+            onGenerate={generateBreakdown}
+            loading={loading}
+            loadingMessage={loadingMessages[loadingMessageIndex]}
+          />
 
           {breakdown && (
             <>
               <ProjectSummary features={breakdown.features} />
 
-              <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-                <ScrollArea className="h-full w-full pr-4">
-                  <div className="prose dark:prose-invert max-w-none">
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
-                      Project Breakdown & Estimation
-                    </h2>
+              <TechnicalConstraints
+                technicalComponents={breakdown.technicalComponents}
+                onSave={handleTechnicalComponentsSave}
+              />
 
-                    <TechnicalConstraints
-                      technicalComponents={breakdown.technicalComponents}
-                      onSave={handleTechnicalComponentsSave}
-                    />
-                    
-                    <div className="space-y-8 mt-6">
-                      {breakdown.features.map((feature, index) => (
-                        <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                          <Feature
-                            feature={feature}
-                            isEditing={editingFeature === index}
-                            editedContent={editedContent}
-                            onStartEdit={() => handleFeatureEdit(index, feature)}
-                            onCancelEdit={() => {
-                              setEditingFeature(null);
-                              setEditedContent(null);
-                            }}
-                            onSaveEdit={() => handleFeatureSave(index)}
-                            onEditChange={handleFeatureEditChange}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </ScrollArea>
-              </Card>
+              {breakdown.features.map((feature, index) => (
+                <Feature
+                  key={index}
+                  feature={feature}
+                  isEditing={editingFeature === index}
+                  editedContent={editedContent}
+                  onStartEdit={() => handleFeatureEdit(index, feature)}
+                  onCancelEdit={() => {
+                    setEditingFeature(null);
+                    setEditedContent(null);
+                  }}
+                  onSaveEdit={() => handleFeatureSave(index)}
+                  onEditChange={handleFeatureEditChange}
+                />
+              ))}
 
-              <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent mb-6">
-                  Book a Consultation
-                </h3>
-                <div className="aspect-video w-full">
-                  <iframe 
-                    src="https://outlook.office.com/bookwithme/user/c9e0c61b439d439da88f930740cb677c@makonis.de/meetingtype/oMBQfrttp02v742OTM_65Q2?anonymous&ep=mLinkFromTile" 
-                    className="w-full h-full rounded-lg border border-white/20" 
-                    allow="camera; microphone; geolocation" 
-                  />
-                </div>
-              </Card>
-
-              <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent mb-6">
-                  Export Project
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-                    onClick={() => {
-                      toast({
-                        title: "Export Started",
-                        description: "Generating Excel file...",
-                      });
-                    }}
-                  >
-                    <FileSpreadsheet className="h-8 w-8" />
-                    <span>Export to Excel</span>
-                  </Button>
-
-                  <Button 
-                    variant="outline"
-                    className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-                    onClick={() => {
-                      toast({
-                        title: "Export Started",
-                        description: "Preparing GitHub repository...",
-                      });
-                    }}
-                  >
-                    <Github className="h-8 w-8" />
-                    <span>Export to GitHub</span>
-                  </Button>
-
-                  <Button 
-                    variant="outline"
-                    className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-                    onClick={() => {
-                      toast({
-                        title: "Export Started",
-                        description: "Preparing Azure DevOps project...",
-                      });
-                    }}
-                  >
-                    <CloudUpload className="h-8 w-8" />
-                    <span>Export to Azure DevOps</span>
-                  </Button>
-
-                  <Button 
-                    variant="outline"
-                    className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-                    onClick={() => {
-                      toast({
-                        title: "Export Started",
-                        description: "Generating Microsoft Project file...",
-                      });
-                    }}
-                  >
-                    <CloudUpload className="h-8 w-8" />
-                    <span>Export to MS Project</span>
-                  </Button>
-                </div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-4">
-                  Export your project breakdown and estimations in various formats for further planning and collaboration.
-                </p>
-              </Card>
+              <ConsultationSection />
+              <ExportSection />
             </>
           )}
         </div>

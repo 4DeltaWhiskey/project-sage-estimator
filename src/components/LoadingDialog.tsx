@@ -1,10 +1,10 @@
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Ghost, Robot, Brain, Laugh } from "lucide-react";
+import { Ghost, Bot, Brain, Laugh } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const funnyMessages = [
-  { text: "Teaching AI to count on its digital fingers...", Icon: Robot },
+  { text: "Teaching AI to count on its digital fingers...", Icon: Bot },
   { text: "Consulting with our ghost developers...", Icon: Ghost },
   { text: "Processing with our quantum abacus...", Icon: Brain },
   { text: "Negotiating hours with our AI team...", Icon: Laugh },
