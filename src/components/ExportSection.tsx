@@ -5,24 +5,9 @@ import { FileSpreadsheet, Github, CloudUpload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { Breakdown, UserStory } from "@/types/project";
+import { useEffect, useState } from "react";
 
-interface ExportSectionProps {
-  breakdown: Breakdown;
-  userStories: UserStory[];
-  projectName: string;
-  isExporting: boolean;
-  setIsExporting: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-export function ExportSection({ 
-  breakdown, 
-  userStories, 
-  projectName, 
-  isExporting, 
-  setIsExporting 
-}: ExportSectionProps) {
+export function ExportSection() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
@@ -54,20 +39,10 @@ export function ExportSection({
       return;
     }
 
-    setIsExporting(true);
     toast({
       title: "Export Started",
       description: `Generating ${type} file...`,
     });
-    
-    // Simulate export process
-    setTimeout(() => {
-      setIsExporting(false);
-      toast({
-        title: "Export Complete",
-        description: `Your project has been exported to ${type} successfully.`,
-      });
-    }, 2000);
   };
 
   return (
@@ -80,7 +55,6 @@ export function ExportSection({
           variant="outline" 
           className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
           onClick={() => handleExport('Excel')}
-          disabled={isExporting}
         >
           <FileSpreadsheet className="h-8 w-8" />
           <span>Export to Excel</span>
@@ -90,7 +64,6 @@ export function ExportSection({
           variant="outline"
           className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
           onClick={() => handleExport('GitHub')}
-          disabled={isExporting}
         >
           <Github className="h-8 w-8" />
           <span>Export to GitHub</span>
@@ -100,7 +73,6 @@ export function ExportSection({
           variant="outline"
           className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
           onClick={() => handleExport('Azure DevOps')}
-          disabled={isExporting}
         >
           <CloudUpload className="h-8 w-8" />
           <span>Export to Azure DevOps</span>
@@ -110,7 +82,6 @@ export function ExportSection({
           variant="outline"
           className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
           onClick={() => handleExport('MS Project')}
-          disabled={isExporting}
         >
           <CloudUpload className="h-8 w-8" />
           <span>Export to MS Project</span>
