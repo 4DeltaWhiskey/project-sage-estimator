@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, LogOut, LogIn } from "lucide-react";
+import { Loader2, LogOut, LogIn, Clock as ClockIcon, Euro as EuroIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectSummary } from "@/components/ProjectSummary";
@@ -430,7 +430,7 @@ const Index = () => {
                   </h2>
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 bg-violet-500/10 dark:bg-violet-500/20 px-4 py-2 rounded-full">
-                      <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                      <ClockIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                       <span className="text-lg font-semibold text-violet-600 dark:text-violet-400">
                         {calculateTotals(breakdown.features).hours}h
                       </span>
@@ -439,7 +439,7 @@ const Index = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-4 py-2 rounded-full">
-                      <Euro className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      <EuroIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                         {calculateTotals(breakdown.features).cost}€
                       </span>
