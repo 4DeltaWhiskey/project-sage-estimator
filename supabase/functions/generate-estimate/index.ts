@@ -59,7 +59,7 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'o1',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
