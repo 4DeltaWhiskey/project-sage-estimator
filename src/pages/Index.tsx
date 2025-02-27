@@ -14,7 +14,6 @@ interface UserStory {
   name: string;
   description: string;
   userStories: string[];
-  technicalComponents: string[];
   estimation?: {
     hours: number;
     cost: number;
@@ -24,6 +23,7 @@ interface UserStory {
 
 interface Breakdown {
   features: UserStory[];
+  technicalComponents: string[];
 }
 
 const loadingMessages = [
@@ -165,7 +165,8 @@ const Index = () => {
         features: data.features.map((feature: UserStory, index: number) => ({
           ...feature,
           estimation: estimationData.estimations[index]
-        }))
+        })),
+        technicalComponents: data.technicalComponents || []
       };
       setBreakdown(enhancedBreakdown);
       toast({
@@ -394,6 +395,20 @@ const Index = () => {
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
                       Project Breakdown & Estimation
                     </h2>
+
+                    <div className="mt-6 bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
+                      <h3 className="text-xl font-semibold text-violet-600 dark:text-violet-400 m-0">
+                        Technical Constraints
+                      </h3>
+                      <ul className="list-none p-0 m-0 space-y-2">
+                        {breakdown.technicalComponents.map((tech, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm">
+                            <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
+                            {tech}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                     
                     <div className="space-y-8 mt-6">
                       {breakdown.features.map((feature, index) => (
