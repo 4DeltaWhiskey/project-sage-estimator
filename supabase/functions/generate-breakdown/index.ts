@@ -62,7 +62,7 @@ Keep the output structured, practical, and focused on modern software developmen
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: description }
@@ -110,4 +110,3 @@ Keep the output structured, practical, and focused on modern software developmen
     );
   }
 });
-
