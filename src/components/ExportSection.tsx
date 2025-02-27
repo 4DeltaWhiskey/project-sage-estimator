@@ -1,24 +1,39 @@
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, Github, CloudUpload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export function ExportSection() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
+  const [showAzureDialog, setShowAzureDialog] = useState(false);
+  const [azureConfig, setAzureConfig] = useState({
+    organization: "",
+    project: "",
+    pat: "",
+  });
 
-  useEffect(() => {
-    // Get initial session
+  // Check for session on component mount
+  useState(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -26,7 +41,7 @@ export function ExportSection() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  });
 
   const handleExport = (type: string) => {
     if (!session) {
@@ -39,10 +54,57 @@ export function ExportSection() {
       return;
     }
 
+    if (type === 'Azure DevOps') {
+      setShowAzureDialog(true);
+      return;
+    }
+
     toast({
       title: "Export Started",
       description: `Generating ${type} file...`,
     });
+  };
+
+  const handleAzureExport = async () => {
+    try {
+      // Validate inputs
+      if (!azureConfig.organization || !azureConfig.project || !azureConfig.pat) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Export Started",
+        description: "Connecting to Azure DevOps...",
+      });
+
+      // Mock export for now - would be replaced with actual Azure DevOps API call
+      // This would typically be handled by a Supabase Edge Function
+      setTimeout(() => {
+        toast({
+          title: "Export Complete",
+          description: `Features and User Stories exported to ${azureConfig.organization}/${azureConfig.project}`,
+        });
+        setShowAzureDialog(false);
+        // Reset the form
+        setAzureConfig({
+          organization: "",
+          project: "",
+          pat: "",
+        });
+      }, 2000);
+
+    } catch (error: any) {
+      toast({
+        title: "Export Failed",
+        description: error.message || "An error occurred during export",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -90,6 +152,65 @@ export function ExportSection() {
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-4">
         Export your project breakdown and estimations in various formats for further planning and collaboration.
       </p>
+
+      {/* Azure DevOps Connection Dialog */}
+      <Dialog open={showAzureDialog} onOpenChange={setShowAzureDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connect to Azure DevOps</DialogTitle>
+            <DialogDescription>
+              Enter your Azure DevOps details to export features and user stories.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="organization" className="text-right">
+                Organization
+              </Label>
+              <Input
+                id="organization"
+                placeholder="your-organization"
+                value={azureConfig.organization}
+                onChange={(e) => setAzureConfig({ ...azureConfig, organization: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="project" className="text-right">
+                Project
+              </Label>
+              <Input
+                id="project"
+                placeholder="your-project"
+                value={azureConfig.project}
+                onChange={(e) => setAzureConfig({ ...azureConfig, project: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="pat" className="text-right">
+                PAT Token
+              </Label>
+              <Input
+                id="pat"
+                type="password"
+                placeholder="Personal Access Token"
+                value={azureConfig.pat}
+                onChange={(e) => setAzureConfig({ ...azureConfig, pat: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAzureDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAzureExport}>
+              Export
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
