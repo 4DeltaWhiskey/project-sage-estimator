@@ -117,7 +117,7 @@ const Index = () => {
         description: "Recalculating project breakdown and estimations...",
       });
 
-      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+      const { data: estimationResponse, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
           breakdown: { 
@@ -128,25 +128,38 @@ const Index = () => {
         }
       });
 
-      if (estimationError) throw estimationError;
+      console.log('Estimation response after technical update:', { data: estimationResponse, error: estimationError });
 
-      setBreakdown({
+      if (estimationError || estimationResponse?.error) {
+        throw new Error(estimationResponse?.error || estimationError.message || 'Failed to generate estimates');
+      }
+
+      if (!estimationResponse || !estimationResponse.estimations || !Array.isArray(estimationResponse.estimations)) {
+        console.error('Invalid estimation response:', estimationResponse);
+        throw new Error('Invalid estimation format');
+      }
+
+      const updatedBreakdown: Breakdown = {
         features: breakdown!.features.map((feature, i) => ({
           ...feature,
-          estimation: estimationData.estimations[i]
+          estimation: estimationResponse.estimations[i]
         })),
         technicalComponents: components
-      });
+      };
+
+      console.log('Updated breakdown with new estimations:', updatedBreakdown);
+      
+      setBreakdown(updatedBreakdown);
 
       toast({
         title: "Project Updated",
-        description: "Technical constraints and estimations have been updated.",
+        description: "Technical constraints and estimations have been recalculated.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating technical constraints:', error);
       toast({
         title: "Error",
-        description: "Failed to update technical constraints. Please try again.",
+        description: error.message || "Failed to update technical constraints. Please try again.",
         variant: "destructive",
       });
     }
