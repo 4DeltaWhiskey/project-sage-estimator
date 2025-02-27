@@ -513,20 +513,6 @@ const Index = () => {
                                   ))}
                                 </ul>
                               </div>
-
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
-                                  Technical Components
-                                </h4>
-                                <ul className="list-none p-0 m-0 space-y-2">
-                                  {feature.technicalComponents.map((tech, techIndex) => (
-                                    <li key={techIndex} className="flex items-start gap-2 text-sm">
-                                      <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-                                      {tech}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
                             </>
                           )}
                         </div>
