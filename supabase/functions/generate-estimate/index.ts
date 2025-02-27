@@ -17,24 +17,43 @@ serve(async (req) => {
   try {
     const { description, breakdown, hourlyRate = 50 } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager. For each feature in the provided breakdown, generate an estimation object with this structure:
+    const systemPrompt = `You are a senior software project manager. For each feature in the provided breakdown, generate an estimation object considering the technical constraints and requirements. The estimation should be higher for features that involve more complex technical components.
+
+    Your task is to:
+    1. Analyze each feature and its user stories
+    2. Consider the technical components that will be used
+    3. Generate an accurate estimation taking into account:
+       - Feature complexity
+       - Number and complexity of user stories
+       - Technical components involved
+       - Integration complexity
+       - Testing requirements
+
+    Return an array of estimation objects, with this structure for each feature:
     {
-      "hours": number (estimated hours),
+      "hours": number (estimated development hours),
       "cost": number (hours * hourlyRate),
-      "details": string (brief explanation of the estimate)
+      "details": string (brief explanation of the estimate considering technical aspects)
     }
 
-    Return an array of these estimation objects, one for each feature. Format as a JSON object with this structure:
+    Format as a JSON object with this structure:
     {
       "estimations": [
         {
           "hours": 40,
           "cost": 2000,
-          "details": "Includes setup of authentication system, user roles, and basic security features..."
+          "details": "Estimate considers setup of auth system, integration with..."
         },
         ...
       ]
     }`;
+
+    console.log('Sending request to OpenAI with:', {
+      description,
+      features: breakdown.features,
+      technicalComponents: breakdown.technicalComponents,
+      hourlyRate
+    });
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,7 +62,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
@@ -51,11 +70,11 @@ serve(async (req) => {
             content: JSON.stringify({
               description,
               features: breakdown.features,
+              technicalComponents: breakdown.technicalComponents,
               hourlyRate
             }, null, 2)
           }
         ],
-        response_format: { type: "json_object" },
         temperature: 0.7,
         max_tokens: 2000,
       }),
@@ -68,7 +87,11 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    return new Response(JSON.stringify(JSON.parse(data.choices[0].message.content)), {
+    const estimations = JSON.parse(data.choices[0].message.content);
+
+    console.log('Generated estimations:', estimations);
+
+    return new Response(JSON.stringify(estimations), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
