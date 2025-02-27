@@ -10,7 +10,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -82,7 +81,6 @@ Keep the output structured, practical, and focused on modern software developmen
     const data = await response.json();
     console.log('Successfully generated breakdown');
 
-    // Validate the response structure
     let breakdown;
     try {
       breakdown = JSON.parse(data.choices[0].message.content);
