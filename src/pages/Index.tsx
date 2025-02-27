@@ -227,38 +227,49 @@ const Index = () => {
 
     try {
       toast({
-        title: "Updating Feature",
-        description: "Recalculating time and budget estimation...",
+        title: "Updating Project",
+        description: "Recalculating project breakdown and estimations...",
       });
+
+      const { data: newBreakdown, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
+        body: {
+          description: projectDescription,
+          currentFeatures: updatedFeatures
+        }
+      });
+
+      if (breakdownError) throw breakdownError;
 
       const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
         body: {
           description: projectDescription,
-          breakdown: { features: [updatedFeatures[index]] },
+          breakdown: { features: newBreakdown.features },
           hourlyRate: 50
         }
       });
 
       if (estimationError) throw estimationError;
 
-      updatedFeatures[index].estimation = estimationData.estimations[0];
+      const enhancedBreakdown = {
+        features: newBreakdown.features.map((feature: UserStory, i: number) => ({
+          ...feature,
+          estimation: estimationData.estimations[i]
+        }))
+      };
 
-      setBreakdown({
-        features: updatedFeatures
-      });
-
+      setBreakdown(enhancedBreakdown);
       setEditingFeature(null);
       setEditedContent(null);
 
       toast({
-        title: "Feature Updated",
-        description: "The feature has been updated with new time and budget estimates.",
+        title: "Project Updated",
+        description: "The project has been updated with consistent technical components across all features.",
       });
     } catch (error) {
-      console.error('Error updating feature:', error);
+      console.error('Error updating project:', error);
       toast({
         title: "Error",
-        description: "Failed to update feature and recalculate estimation. Please try again.",
+        description: "Failed to update project and recalculate estimations. Please try again.",
         variant: "destructive",
       });
     }

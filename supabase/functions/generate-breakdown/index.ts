@@ -15,7 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const { description } = await req.json();
+    const { description, currentFeatures } = await req.json();
 
     if (!openAIApiKey) {
       console.error('OpenAI API key is not configured');
@@ -35,6 +35,18 @@ Focus on the following aspects:
 1. Core Features (maximum 6 essential features)
 2. User Stories (2-4 key stories per feature)
 3. Technical Components (required technologies and infrastructure)
+
+${currentFeatures ? `
+IMPORTANT: The project already has existing features with defined technical components. 
+Review the current features and their technical choices:
+${JSON.stringify(currentFeatures, null, 2)}
+
+Ensure your response:
+1. Maintains consistency with existing technical decisions
+2. Aligns new technical components with the existing architecture
+3. Identifies and resolves any technical conflicts
+4. Suggests improvements where necessary while maintaining compatibility
+` : ''}
 
 Format the response as a JSON object with this exact structure:
 {
