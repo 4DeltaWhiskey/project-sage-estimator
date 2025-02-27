@@ -26,10 +26,24 @@ interface Breakdown {
   features: UserStory[];
 }
 
+const loadingMessages = [
+  "🤔 Consulting with our AI hamsters...",
+  "🎲 Rolling dice to determine project complexity...",
+  "🔮 Gazing into our crystal ball for accurate estimates...",
+  "🧮 Teaching our abacus quantum computing...",
+  "🤖 Negotiating with the AI about working hours...",
+  "🎯 Calculating precision with a banana for scale...",
+  "📊 Converting coffee cups to code quality...",
+  "🎪 Juggling features and deadlines...",
+  "🎭 Performing interpretive dance to understand requirements...",
+  "🎪 Training monkeys to write clean code..."
+];
+
 const Index = () => {
   const [projectDescription, setProjectDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [session, setSession] = useState<any>(null);
   const [recentPrompts, setRecentPrompts] = useState<{ id: string; description: string; created_at: string; }[]>([]);
   const [authDialog, setAuthDialog] = useState(false);
@@ -95,6 +109,19 @@ const Index = () => {
 
     await fetchRecentPrompts();
   };
+
+  useEffect(() => {
+    let interval: number | undefined;
+    if (loading) {
+      interval = setInterval(() => {
+        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+      }, 2000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+      setLoadingMessageIndex(0);
+    };
+  }, [loading]);
 
   const generateBreakdown = async () => {
     if (!projectDescription.trim()) {
@@ -347,7 +374,14 @@ const Index = () => {
                 disabled={loading} 
                 className="w-full group relative overflow-hidden bg-gradient-to-r from-rose-500 via-violet-500 to-teal-500 hover:from-rose-400 hover:via-violet-400 hover:to-teal-400 text-white rounded-xl py-6 transition-all duration-500 shadow-xl hover:shadow-2xl hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100"
               >
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Generate Work Breakdown & Estimation"}
+                {loading ? (
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="animate-fade-in">{loadingMessages[loadingMessageIndex]}</span>
+                  </div>
+                ) : (
+                  "Generate Work Breakdown & Estimation"
+                )}
               </Button>
             </div>
           </Card>
