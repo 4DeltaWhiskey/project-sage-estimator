@@ -10,7 +10,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,40 +17,34 @@ serve(async (req) => {
   try {
     const { description, breakdown, hourlyRate = 50, allFeatures = false } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager and technical architect with deep expertise in software estimation. Conduct a thorough analysis of the provided features and their technical components.
+    const systemPrompt = `You are a senior software project manager and technical architect. Analyze the provided features and their technical components.
 
-    Your analysis should include:
-    1. Detailed technical dependencies between features
-    2. Comprehensive architectural considerations
-    3. In-depth analysis of development complexity
-    4. Infrastructure and scalability requirements
-    5. Technical debt and maintainability factors
-    6. Security and compliance implications
-    7. Testing and quality assurance requirements
-    8. Integration complexity with existing systems
-    9. Performance optimization needs
-    10. Future scalability considerations
+    Key responsibilities:
+    1. If a feature introduces a new technology or framework, consider its impact on other features
+    2. Identify shared technical dependencies across features
+    3. Adjust time estimates based on technology reuse and shared infrastructure
+    4. Consider setup and integration time for new technologies
+    5. Account for potential refactoring needed in other features
 
-    For each feature, provide a detailed estimation object with:
+    For each feature, generate an estimation object with:
     {
-      "hours": number (estimated development hours),
+      "hours": number (estimated hours),
       "cost": number (hours * hourlyRate),
-      "details": string (comprehensive explanation of the estimate including all technical considerations)
+      "details": string (explanation including technology considerations and dependencies)
     }
 
     Format response as:
     {
       "estimations": [
         {
-          "hours": number,
-          "cost": number,
-          "details": string
+          "hours": 40,
+          "cost": 2000,
+          "details": "Includes initial setup of X technology which will benefit feature Y..."
         }
       ],
       "technicalConsiderations": {
-        "sharedTechnologies": ["detailed list of technologies affecting multiple features"],
-        "impactAnalysis": "In-depth analysis of cross-feature technical impacts and architectural considerations",
-        "recommendations": "Strategic technical recommendations for implementation"
+        "sharedTechnologies": ["list of technologies that affect multiple features"],
+        "impactAnalysis": "Brief analysis of cross-feature technical impacts"
       }
     }`;
 
@@ -62,21 +55,22 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
             content: JSON.stringify({
               description,
-              features: allFeatures ? breakdown.features : [breakdown.features[0]],
+              features: allFeatures ? breakdown.features : breakdown.features[0],
+              allFeatures: breakdown.features,
               hourlyRate
-            })
+            }, null, 2)
           }
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
-        max_tokens: 4000,
+        max_tokens: 2000,
       }),
     });
 
@@ -87,7 +81,6 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Estimation response:', data);
     return new Response(JSON.stringify(JSON.parse(data.choices[0].message.content)), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
