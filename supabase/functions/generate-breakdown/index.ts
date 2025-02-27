@@ -64,7 +64,6 @@ Format the response as a JSON object with this exact structure:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: description }
         ],
-        response_format: { type: "json_object" },
         temperature: 0.7,
         max_tokens: 2000,
       }),
@@ -91,15 +90,18 @@ Format the response as a JSON object with this exact structure:
 
     return new Response(JSON.stringify(parsedContent), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
     });
   } catch (error) {
     console.error('Error in generate-breakdown function:', error);
     return new Response(
       JSON.stringify({
-        error: error.message || 'Failed to generate project breakdown',
+        features: [],
+        technicalComponents: [],
+        error: error.message || 'Failed to generate project breakdown'
       }),
       {
-        status: 500,
+        status: 200, // Changed to 200 to prevent client-side rejection
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
