@@ -57,6 +57,9 @@ const Index = () => {
     description: string;
     userStories: string;
   } | null>(null);
+  const [editingTechnicalConstraints, setEditingTechnicalConstraints] = useState(false);
+  const [editedTechnicalComponents, setEditedTechnicalComponents] = useState<string>('');
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -191,6 +194,58 @@ const Index = () => {
       toast({
         title: "Error",
         description: "Failed to update project and recalculate estimations. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const saveTechnicalEdits = async () => {
+    if (!breakdown) return;
+
+    try {
+      toast({
+        title: "Updating Project",
+        description: "Recalculating project breakdown and estimations...",
+      });
+
+      const updatedTechnicalComponents = editedTechnicalComponents
+        .split('\n')
+        .filter(tech => tech.trim());
+
+      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+        body: {
+          description: projectDescription,
+          breakdown: { 
+            features: breakdown.features,
+            technicalComponents: updatedTechnicalComponents 
+          },
+          hourlyRate: 50
+        }
+      });
+
+      if (estimationError) throw estimationError;
+
+      const enhancedBreakdown: Breakdown = {
+        features: breakdown.features.map((feature, i) => ({
+          ...feature,
+          estimation: estimationData.estimations[i]
+        })),
+        technicalComponents: updatedTechnicalComponents
+      };
+
+      setBreakdown(enhancedBreakdown);
+      setEditingTechnicalConstraints(false);
+      setEditedTechnicalComponents('');
+
+      toast({
+        title: "Project Updated",
+        description: "Technical constraints and estimations have been updated.",
+      });
+    } catch (error) {
+      console.error('Error updating technical constraints:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update technical constraints. Please try again.",
         variant: "destructive",
       });
     }
@@ -399,17 +454,62 @@ const Index = () => {
                     </h2>
 
                     <div className="mt-6 bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                      <h3 className="text-xl font-semibold text-violet-600 dark:text-violet-400 m-0">
-                        Technical Constraints
-                      </h3>
-                      <ul className="list-none p-0 m-0 space-y-2">
-                        {breakdown.technicalComponents.map((tech, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
-                            <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-                            {tech}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="flex items-start justify-between gap-4">
+                        <h3 className="text-xl font-semibold text-violet-600 dark:text-violet-400 m-0">
+                          Technical Constraints
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingTechnicalConstraints(true);
+                            setEditedTechnicalComponents(breakdown.technicalComponents.join('\n'));
+                          }}
+                          className="text-violet-600 dark:text-violet-400"
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Refine
+                        </Button>
+                      </div>
+                      {editingTechnicalConstraints ? (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium text-violet-600 dark:text-violet-400 block mb-2">
+                              Technical Components (one per line)
+                            </label>
+                            <Textarea
+                              value={editedTechnicalComponents}
+                              onChange={(e) => setEditedTechnicalComponents(e.target.value)}
+                              className="w-full min-h-[200px]"
+                              placeholder="Enter technical components, one per line"
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => {
+                                setEditingTechnicalConstraints(false);
+                                setEditedTechnicalComponents('');
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button onClick={saveTechnicalEdits}>
+                              <Save className="h-4 w-4 mr-2" />
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <ul className="list-none p-0 m-0 space-y-2">
+                          {breakdown.technicalComponents.map((tech, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm">
+                              <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
+                              {tech}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                     
                     <div className="space-y-8 mt-6">
