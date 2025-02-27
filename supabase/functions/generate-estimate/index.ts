@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -61,17 +62,16 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
             content: JSON.stringify({
               description,
-              features: allFeatures ? breakdown.features : breakdown.features[0],
-              allFeatures: breakdown.features,
+              features: allFeatures ? breakdown.features : [breakdown.features[0]],
               hourlyRate
-            }, null, 2)
+            })
           }
         ],
         response_format: { type: "json_object" },
@@ -87,7 +87,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Estimation response:', data); // Added for debugging
+    console.log('Estimation response:', data);
     return new Response(JSON.stringify(JSON.parse(data.choices[0].message.content)), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -102,3 +102,4 @@ serve(async (req) => {
     );
   }
 });
+
