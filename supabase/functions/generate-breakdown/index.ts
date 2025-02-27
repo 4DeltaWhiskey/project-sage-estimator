@@ -59,7 +59,7 @@ Respond with ONLY a valid JSON object matching this structure (no markdown, no b
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',  // Fixed model name
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: description }
@@ -109,8 +109,6 @@ Respond with ONLY a valid JSON object matching this structure (no markdown, no b
     console.error('Error in generate-breakdown function:', error);
     return new Response(
       JSON.stringify({
-        features: [],
-        technicalComponents: [],
         error: error.message || 'Failed to generate project breakdown'
       }),
       {

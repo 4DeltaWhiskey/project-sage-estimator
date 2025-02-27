@@ -37,7 +37,8 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
   "estimations": [
     {
       "hours": number,
-      "cost": number (hours * hourlyRate)
+      "cost": number (hours * hourlyRate),
+      "details": "Brief explanation of the estimation"
     }
   ]
 }`;
@@ -49,7 +50,7 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',  // Fixed model name
         messages: [
           { role: 'system', content: systemPrompt },
           { 
@@ -62,7 +63,7 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
             })
           }
         ],
-        temperature: 0.3, // Lower temperature for more consistent estimates
+        temperature: 0.3,
         max_tokens: 1000,
       }),
     });
@@ -94,7 +95,8 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
       // Validate each estimation
       parsedContent.estimations = parsedContent.estimations.map(est => ({
         hours: Number(est.hours) || 0,
-        cost: Number(est.hours || 0) * hourlyRate
+        cost: Number(est.hours || 0) * hourlyRate,
+        details: est.details || 'No details provided'
       }));
 
       console.log('Final estimations:', parsedContent);
@@ -112,7 +114,6 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
     console.error('Error in generate-estimate function:', error);
     return new Response(
       JSON.stringify({
-        estimations: [],
         error: error.message || 'Failed to generate estimates'
       }),
       {
