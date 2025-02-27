@@ -61,6 +61,19 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+    if (loading) {
+      interval = setInterval(() => {
+        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+      }, 2000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+      setLoadingMessageIndex(0);
+    };
+  }, [loading]);
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -109,19 +122,6 @@ const Index = () => {
 
     await fetchRecentPrompts();
   };
-
-  useEffect(() => {
-    let interval: number | undefined;
-    if (loading) {
-      interval = setInterval(() => {
-        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
-      }, 2000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-      setLoadingMessageIndex(0);
-    };
-  }, [loading]);
 
   const generateBreakdown = async () => {
     if (!projectDescription.trim()) {
