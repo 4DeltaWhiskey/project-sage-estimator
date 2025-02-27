@@ -59,7 +59,7 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'o1',
+        model: 'o1-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
