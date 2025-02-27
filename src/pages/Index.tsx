@@ -276,7 +276,7 @@ const Index = () => {
           {breakdown && (
             <>
               <Card className="p-8 backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10 shadow-2xl rounded-2xl animate-in fade-in slide-in-from-bottom duration-700">
-                <ScrollArea className="h-[800px] pr-4">
+                <ScrollArea className="h-[calc(100vh-16rem)] pr-4">
                   <div className="prose dark:prose-invert max-w-none">
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 via-violet-600 to-teal-600 dark:from-rose-400 dark:via-violet-400 dark:to-teal-400 bg-clip-text text-transparent m-0">
                       Project Breakdown & Estimation
