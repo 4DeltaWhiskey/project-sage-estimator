@@ -17,43 +17,42 @@ serve(async (req) => {
   try {
     const { description, breakdown, hourlyRate = 50 } = await req.json();
 
-    const systemPrompt = `You are a senior software project manager. For each feature in the provided breakdown, generate an estimation object considering the technical constraints and requirements. The estimation should be higher for features that involve more complex technical components.
+    const systemPrompt = `You are a senior software project manager. You need to generate a completely new estimation for each feature based on the updated technical constraints. 
+    
+    IMPORTANT: The new estimates should be different from previous ones as they must reflect the impact of the technical changes.
 
     Your task is to:
     1. Analyze each feature and its user stories
-    2. Consider the technical components that will be used
-    3. Generate an accurate estimation taking into account:
-       - Feature complexity
+    2. Consider how the provided technical components affect the implementation complexity
+    3. Generate accurate estimations taking into account:
+       - Feature complexity and scope
        - Number and complexity of user stories
-       - Technical components involved
-       - Integration complexity
-       - Testing requirements
+       - Required technical skills and learning curve
+       - Integration complexity with chosen technologies
+       - Testing requirements for the specific tech stack
+       - Development environment setup time
+       - Potential technical risks and mitigation time
 
-    Return an array of estimation objects, with this structure for each feature:
+    For each feature, generate an estimation object with:
     {
-      "hours": number (estimated development hours),
+      "hours": number (realistic development hours considering technical complexity),
       "cost": number (hours * hourlyRate),
-      "details": string (brief explanation of the estimate considering technical aspects)
+      "details": string (explanation focusing on technical implementation factors)
     }
 
-    Format as a JSON object with this structure:
+    Format as a JSON object:
     {
       "estimations": [
         {
-          "hours": 40,
-          "cost": 2000,
-          "details": "Estimate considers setup of auth system, integration with..."
+          "hours": number,
+          "cost": number,
+          "details": string
         },
         ...
       ]
     }`;
 
-    console.log('Sending request to OpenAI with:', {
-      description,
-      features: breakdown.features,
-      technicalComponents: breakdown.technicalComponents,
-      hourlyRate
-    });
+    console.log('Processing estimation with technical constraints:', breakdown.technicalComponents);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -62,7 +61,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
@@ -75,21 +74,19 @@ serve(async (req) => {
             }, null, 2)
           }
         ],
-        temperature: 0.7,
+        temperature: 0.8,
         max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('OpenAI API error:', error);
       throw new Error('Failed to generate project estimate');
     }
 
     const data = await response.json();
     const estimations = JSON.parse(data.choices[0].message.content);
 
-    console.log('Generated estimations:', estimations);
+    console.log('Generated new estimations:', estimations);
 
     return new Response(JSON.stringify(estimations), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

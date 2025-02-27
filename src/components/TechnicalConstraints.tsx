@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, Pencil, Save } from "lucide-react";
+import { LoadingDialog } from "@/components/LoadingDialog";
 
 interface TechnicalConstraintsProps {
   technicalComponents: string[];
@@ -12,9 +13,21 @@ interface TechnicalConstraintsProps {
 export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalConstraintsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedComponents, setEditedComponents] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    const components = editedComponents
+      .split('\n')
+      .filter(tech => tech.trim());
+    await onSave(components);
+    setIsEditing(false);
+    setIsLoading(false);
+  };
 
   return (
     <div className="mt-6 bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
+      <LoadingDialog open={isLoading} />
       <div className="flex items-start justify-between gap-4">
         <h3 className="text-xl font-semibold text-violet-600 dark:text-violet-400 m-0">
           Technical Constraints
@@ -52,17 +65,13 @@ export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalC
                 setIsEditing(false);
                 setEditedComponents('');
               }}
+              disabled={isLoading}
             >
               Cancel
             </Button>
             <Button 
-              onClick={() => {
-                const components = editedComponents
-                  .split('\n')
-                  .filter(tech => tech.trim());
-                onSave(components);
-                setIsEditing(false);
-              }}
+              onClick={handleSave}
+              disabled={isLoading}
             >
               <Save className="h-4 w-4 mr-2" />
               Save Changes
