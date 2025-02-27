@@ -28,17 +28,26 @@ serve(async (req) => {
     }
 
     console.log('Generating estimates for features:', breakdown.features.map(f => f.name));
+    console.log('Technical components:', breakdown.technicalComponents);
 
     const systemPrompt = `You are a senior software project manager with expertise in estimating software development efforts.
 For each feature in the project breakdown, estimate the development time in hours.
-Consider the technical components required and the complexity of user stories.
+Consider the technical stack and components carefully - different technologies have different development speeds and complexities.
+Some considerations:
+- Modern frameworks like React, Vue, or Angular might reduce frontend development time
+- Microservices architectures might increase initial setup time but improve maintainability
+- Cloud services like AWS or Azure might reduce infrastructure setup time but require specific expertise
+- Legacy technologies might require more time due to limited resources and complexity
+- Mobile development might require additional time for platform-specific implementations
+- Different databases have different setup and optimization requirements
+
 Respond with ONLY the array of estimations, one per feature, in this exact format:
 {
   "estimations": [
     {
       "hours": number,
       "cost": number (hours * hourlyRate),
-      "details": "Brief explanation of the estimation"
+      "details": "Brief explanation of the estimation, including technology impact"
     }
   ]
 }`;
@@ -50,7 +59,7 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',  // Fixed model name
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
@@ -81,7 +90,6 @@ Respond with ONLY the array of estimations, one per feature, in this exact forma
       throw new Error('Invalid response format from OpenAI');
     }
 
-    // Clean up the content and parse the JSON
     let content = data.choices[0].message.content.trim();
     content = content.replace(/^```json\s*/, '').replace(/```$/, '');
     
