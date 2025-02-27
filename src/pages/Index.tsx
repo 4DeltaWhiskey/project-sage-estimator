@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info, LogOut, LogIn } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Euro, Clock, Info, LogOut, LogIn, Pencil, Save } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -37,6 +37,13 @@ const Index = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [editingFeature, setEditingFeature] = useState<number | null>(null);
+  const [editedContent, setEditedContent] = useState<{
+    name: string;
+    description: string;
+    userStories: string;
+    technicalComponents: string;
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -196,6 +203,62 @@ const Index = () => {
     }
   };
 
+  const startEditing = (index: number, feature: UserStory) => {
+    setEditingFeature(index);
+    setEditedContent({
+      name: feature.name,
+      description: feature.description,
+      userStories: feature.userStories.join('\n'),
+      technicalComponents: feature.technicalComponents.join('\n'),
+    });
+  };
+
+  const saveEdits = async (index: number) => {
+    if (!editedContent) return;
+
+    const updatedFeatures = [...(breakdown?.features || [])];
+    updatedFeatures[index] = {
+      ...updatedFeatures[index],
+      name: editedContent.name,
+      description: editedContent.description,
+      userStories: editedContent.userStories.split('\n').filter(story => story.trim()),
+      technicalComponents: editedContent.technicalComponents.split('\n').filter(tech => tech.trim()),
+    };
+
+    try {
+      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+        body: {
+          description: projectDescription,
+          breakdown: { features: [updatedFeatures[index]] },
+          hourlyRate: 50
+        }
+      });
+
+      if (estimationError) throw estimationError;
+
+      updatedFeatures[index].estimation = estimationData.estimations[0];
+
+      setBreakdown({
+        features: updatedFeatures
+      });
+
+      setEditingFeature(null);
+      setEditedContent(null);
+
+      toast({
+        title: "Feature Updated",
+        description: "The feature has been updated and estimation recalculated.",
+      });
+    } catch (error) {
+      console.error('Error updating feature:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update feature and recalculate estimation.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-100 via-violet-100 to-teal-100 dark:from-rose-950/30 dark:via-violet-950/30 dark:to-teal-950/30">
       <div className="container mx-auto px-4 py-12 max-w-6xl relative">
@@ -285,58 +348,131 @@ const Index = () => {
                     <div className="space-y-8 mt-6">
                       {breakdown.features.map((feature, index) => (
                         <div key={index} className="bg-black/5 dark:bg-white/5 rounded-xl p-6 space-y-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
-                              {feature.name}
-                            </h3>
-                            {feature.estimation && <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
-                                      <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                        {feature.estimation.hours}h
-                                      </span>
-                                      <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
-                                        ({feature.estimation.cost}€)
-                                      </span>
-                                      <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs">
-                                    <p className="text-sm">{feature.estimation.details}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>}
-                          </div>
-                          
-                          <p className="text-zinc-600 dark:text-zinc-300 m-0">
-                            {feature.description}
-                          </p>
-                          
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
-                              User Stories
-                            </h4>
-                            <ul className="list-none p-0 m-0 space-y-2">
-                              {feature.userStories.map((story, storyIndex) => <li key={storyIndex} className="flex items-start gap-2 text-sm">
-                                  <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
-                                  {story}
-                                </li>)}
-                            </ul>
-                          </div>
+                          {editingFeature === index ? (
+                            <div className="space-y-4">
+                              <Input
+                                value={editedContent?.name}
+                                onChange={(e) => setEditedContent(prev => ({ ...prev!, name: e.target.value }))}
+                                className="font-semibold text-xl w-full"
+                                placeholder="Feature name"
+                              />
+                              <Textarea
+                                value={editedContent?.description}
+                                onChange={(e) => setEditedContent(prev => ({ ...prev!, description: e.target.value }))}
+                                className="w-full"
+                                placeholder="Feature description"
+                              />
+                              <div>
+                                <label className="text-sm font-medium text-violet-600 dark:text-violet-400 block mb-2">
+                                  User Stories (one per line)
+                                </label>
+                                <Textarea
+                                  value={editedContent?.userStories}
+                                  onChange={(e) => setEditedContent(prev => ({ ...prev!, userStories: e.target.value }))}
+                                  className="w-full"
+                                  placeholder="Enter user stories, one per line"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-teal-600 dark:text-teal-400 block mb-2">
+                                  Technical Components (one per line)
+                                </label>
+                                <Textarea
+                                  value={editedContent?.technicalComponents}
+                                  onChange={(e) => setEditedContent(prev => ({ ...prev!, technicalComponents: e.target.value }))}
+                                  className="w-full"
+                                  placeholder="Enter technical components, one per line"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => {
+                                    setEditingFeature(null);
+                                    setEditedContent(null);
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button onClick={() => saveEdits(index)}>
+                                  <Save className="h-4 w-4 mr-2" />
+                                  Save Changes
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between gap-4">
+                                <h3 className="text-xl font-semibold text-rose-600 dark:text-rose-400 m-0">
+                                  {feature.name}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditing(index, feature)}
+                                    className="text-violet-600 dark:text-violet-400"
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Refine
+                                  </Button>
+                                  {feature.estimation && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-full">
+                                            <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                              {feature.estimation.hours}h
+                                            </span>
+                                            <span className="text-sm font-medium text-emerald-600/70 dark:text-emerald-400/70">
+                                              ({feature.estimation.cost}€)
+                                            </span>
+                                            <Info className="h-4 w-4 text-emerald-600/50 dark:text-emerald-400/50" />
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs">
+                                          <p className="text-sm">{feature.estimation.details}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <p className="text-zinc-600 dark:text-zinc-300 m-0">
+                                {feature.description}
+                              </p>
+                              
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-violet-600 dark:text-violet-400 m-0">
+                                  User Stories
+                                </h4>
+                                <ul className="list-none p-0 m-0 space-y-2">
+                                  {feature.userStories.map((story, storyIndex) => (
+                                    <li key={storyIndex} className="flex items-start gap-2 text-sm">
+                                      <CheckCircle2 className="h-4 w-4 mt-1 text-emerald-500" />
+                                      {story}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
 
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
-                              Technical Components
-                            </h4>
-                            <ul className="list-none p-0 m-0 space-y-2">
-                              {feature.technicalComponents.map((tech, techIndex) => <li key={techIndex} className="flex items-start gap-2 text-sm">
-                                  <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
-                                  {tech}
-                                </li>)}
-                            </ul>
-                          </div>
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-teal-600 dark:text-teal-400 m-0">
+                                  Technical Components
+                                </h4>
+                                <ul className="list-none p-0 m-0 space-y-2">
+                                  {feature.technicalComponents.map((tech, techIndex) => (
+                                    <li key={techIndex} className="flex items-start gap-2 text-sm">
+                                      <CheckCircle2 className="h-4 w-4 mt-1 text-violet-500" />
+                                      {tech}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
