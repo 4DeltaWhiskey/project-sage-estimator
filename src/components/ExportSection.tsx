@@ -30,6 +30,11 @@ interface AzureProject {
   name: string;
 }
 
+interface AzureEpic {
+  id: number;
+  name: string;
+}
+
 interface AzureTeam {
   id: string;
   name: string;
@@ -57,6 +62,8 @@ export function ExportSection() {
   const navigate = useNavigate();
   const [session, setSession] = useState<any>(null);
   const [showAzureDialog, setShowAzureDialog] = useState(false);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
+  const [showEpicDialog, setShowEpicDialog] = useState(false);
   const [azureConfig, setAzureConfig] = useState({
     organization: "",
     project: "",
@@ -67,10 +74,15 @@ export function ExportSection() {
   });
   const [projects, setProjects] = useState<AzureProject[]>([]);
   const [teams, setTeams] = useState<AzureTeam[]>([]);
+  const [epics, setEpics] = useState<AzureEpic[]>([]);
+  const [selectedEpic, setSelectedEpic] = useState<number | null>(null);
+  const [createNewEpic, setCreateNewEpic] = useState(true);
+  const [newEpicName, setNewEpicName] = useState("");
   const [iterations, setIterations] = useState<AzureIterationPath[]>([]);
   const [areas, setAreas] = useState<AzureAreaPath[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [isLoadingEpics, setIsLoadingEpics] = useState(false);
   const [isLoadingPaths, setIsLoadingPaths] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
@@ -93,6 +105,12 @@ export function ExportSection() {
       try {
         const parsed = JSON.parse(storedBreakdown);
         setBreakdown(parsed);
+        
+        // Generate a default epic name based on the project
+        if (parsed && parsed.features && parsed.features.length > 0) {
+          const keywords = parsed.features.slice(0, 3).map(f => f.name.split(' ')[0]);
+          setNewEpicName(`Project: ${keywords.join(', ')}...`);
+        }
       } catch (error) {
         console.error('Failed to parse stored breakdown:', error);
       }
@@ -198,114 +216,123 @@ export function ExportSection() {
     }
   };
 
-  const fetchTeams = async () => {
+  const fetchAzureEpics = async () => {
     if (!azureConfig.organization || !azureConfig.project || !azureConfig.pat) return;
-
-    setIsLoadingTeams(true);
+    
+    setIsLoadingEpics(true);
     try {
       const headers = new Headers();
       headers.append('Authorization', 'Basic ' + btoa(':' + azureConfig.pat));
       
-      const response = await fetch(
-        `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/teams?api-version=7.0`,
-        { headers }
+      // Use WIQL to query for Epic type work items
+      const wiqlQuery = {
+        query: `SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.WorkItemType] = 'Epic' AND [System.TeamProject] = '${azureConfig.project}' ORDER BY [System.Title] ASC`
+      };
+      
+      const wiqlResponse = await fetch(
+        `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/wiql?api-version=7.0`,
+        { 
+          method: 'POST',
+          headers: { 
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(wiqlQuery)
+        }
       );
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch teams: ${response.statusText}`);
+      if (!wiqlResponse.ok) {
+        throw new Error(`Failed to fetch epics: ${wiqlResponse.statusText}`);
       }
       
-      const data = await response.json();
-      setTeams(data.value.map((t: any) => ({ id: t.id, name: t.name })));
+      const wiqlData = await wiqlResponse.json();
+      
+      if (wiqlData.workItems && wiqlData.workItems.length > 0) {
+        // Get detailed info for each epic
+        const ids = wiqlData.workItems.map((item: any) => item.id).join(',');
+        
+        const detailsResponse = await fetch(
+          `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workitems?ids=${ids}&api-version=7.0`,
+          { headers }
+        );
+        
+        if (!detailsResponse.ok) {
+          throw new Error(`Failed to fetch epic details: ${detailsResponse.statusText}`);
+        }
+        
+        const detailsData = await detailsResponse.json();
+        
+        const fetchedEpics = detailsData.value.map((epic: any) => ({
+          id: epic.id,
+          name: epic.fields['System.Title']
+        }));
+        
+        setEpics(fetchedEpics);
+      } else {
+        setEpics([]);
+      }
     } catch (error: any) {
+      console.error('Error fetching epics:', error);
       toast({
-        title: "Error Fetching Teams",
-        description: error.message || "Failed to load teams for the selected project",
+        title: "Error Fetching Epics",
+        description: error.message || "Failed to load Epics",
         variant: "destructive",
       });
     } finally {
-      setIsLoadingTeams(false);
+      setIsLoadingEpics(false);
     }
   };
 
-  const fetchIterationsAndAreas = async () => {
-    if (!azureConfig.organization || !azureConfig.project || !azureConfig.teamId || !azureConfig.pat) return;
-
-    setIsLoadingPaths(true);
+  const connectToAzure = async () => {
+    if (!azureConfig.organization || !azureConfig.pat) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both organization name and PAT token",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      const headers = new Headers();
-      headers.append('Authorization', 'Basic ' + btoa(':' + azureConfig.pat));
-      
-      // Fetch iterations
-      const iterationsResponse = await fetch(
-        `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/${azureConfig.teamId}/_apis/work/teamsettings/iterations?api-version=7.0`,
-        { headers }
-      );
-      
-      if (!iterationsResponse.ok) {
-        throw new Error(`Failed to fetch iterations: ${iterationsResponse.statusText}`);
-      }
-      
-      const iterationsData = await iterationsResponse.json();
-      setIterations(iterationsData.value.map((i: any) => ({ 
-        id: i.id, 
-        name: i.name,
-        path: i.path
-      })));
-
-      // Fetch areas
-      const areasResponse = await fetch(
-        `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/${azureConfig.teamId}/_apis/work/teamsettings/teamfieldvalues?api-version=7.0`,
-        { headers }
-      );
-      
-      if (!areasResponse.ok) {
-        throw new Error(`Failed to fetch areas: ${areasResponse.statusText}`);
-      }
-      
-      const areasData = await areasResponse.json();
-      if (areasData.values) {
-        setAreas(areasData.values.map((a: any) => ({ 
-          id: a.value, 
-          name: a.value.split('\\').pop(),
-          path: a.value
-        })));
-      }
+      await fetchAzureProjects();
+      setShowAzureDialog(false);
+      setShowProjectDialog(true);
     } catch (error: any) {
       toast({
-        title: "Error Fetching Project Structure",
-        description: error.message || "Failed to load project structure",
+        title: "Connection Failed",
+        description: error.message || "Failed to connect to Azure DevOps",
         variant: "destructive",
       });
-    } finally {
-      setIsLoadingPaths(false);
     }
   };
 
-  // Effect to fetch projects when organization and PAT are set
-  useEffect(() => {
-    if (azureConfig.organization && azureConfig.pat) {
-      fetchAzureProjects();
+  const selectProject = async () => {
+    if (!azureConfig.project) {
+      toast({
+        title: "No Project Selected",
+        description: "Please select a project to continue",
+        variant: "destructive",
+      });
+      return;
     }
-  }, [azureConfig.organization, azureConfig.pat]);
-
-  // Effect to fetch teams when project is selected
-  useEffect(() => {
-    if (azureConfig.organization && azureConfig.project && azureConfig.pat) {
-      fetchTeams();
-      // Reset team selection when project changes
-      setAzureConfig(prev => ({ ...prev, teamId: "" }));
+    
+    try {
+      // Save the current organization and project
+      await saveAzureSettings();
+      
+      // Fetch epics for the selected project
+      await fetchAzureEpics();
+      
+      setShowProjectDialog(false);
+      setShowEpicDialog(true);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process project selection",
+        variant: "destructive",
+      });
     }
-  }, [azureConfig.organization, azureConfig.project, azureConfig.pat]);
-
-  // Effect to fetch iterations and areas when team is selected
-  useEffect(() => {
-    if (azureConfig.organization && azureConfig.project && azureConfig.teamId && azureConfig.pat) {
-      fetchIterationsAndAreas();
-      // Reset path selections when team changes
-      setAzureConfig(prev => ({ ...prev, iterationPath: "", areaPath: "" }));
-    }
-  }, [azureConfig.organization, azureConfig.project, azureConfig.teamId, azureConfig.pat]);
+  };
 
   const saveAzureSettings = async () => {
     if (!session?.user || !azureConfig.organization) return;
@@ -379,24 +406,6 @@ export function ExportSection() {
       }
     ];
     
-    // Add area path if specified
-    if (azureConfig.areaPath) {
-      fields.push({
-        "op": "add",
-        "path": "/fields/System.AreaPath",
-        "value": azureConfig.areaPath
-      });
-    }
-    
-    // Add iteration path if specified
-    if (azureConfig.iterationPath) {
-      fields.push({
-        "op": "add",
-        "path": "/fields/System.IterationPath",
-        "value": azureConfig.iterationPath
-      });
-    }
-    
     // Create the work item first
     const response = await fetch(
       `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workitems/$${type}?api-version=7.0`,
@@ -452,16 +461,6 @@ export function ExportSection() {
 
   const handleAzureExport = async () => {
     try {
-      // Validate inputs
-      if (!azureConfig.organization || !azureConfig.project || !azureConfig.pat) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all required connection fields",
-          variant: "destructive",
-        });
-        return;
-      }
-
       // Check if we have any features to export
       if (!breakdown || !breakdown.features || breakdown.features.length === 0) {
         throw new Error("No features to export. Please generate a project breakdown first.");
@@ -470,18 +469,26 @@ export function ExportSection() {
       setIsExporting(true);
       toast({
         title: "Export Started",
-        description: "Connecting to Azure DevOps...",
+        description: "Creating work items in Azure DevOps...",
       });
 
-      // Save Azure settings including encrypted PAT
-      await saveAzureSettings();
-
-      // Create a parent Epic for the whole project
-      const epicId = await createWorkItem(
-        "Epic", 
-        "AI Requirements Engineer Export", 
-        "Automatically generated project structure from AI Requirements Engineer"
-      );
+      // Determine epic ID to use
+      let epicId: number;
+      
+      if (createNewEpic) {
+        // Create a new epic with the provided name
+        const epicTitle = newEpicName || "AI Requirements Engineer Export";
+        epicId = await createWorkItem(
+          "Epic", 
+          epicTitle, 
+          "Automatically generated project structure from AI Requirements Engineer"
+        );
+      } else if (selectedEpic) {
+        // Use the selected existing epic
+        epicId = selectedEpic;
+      } else {
+        throw new Error("Please select an epic or create a new one.");
+      }
 
       // Create features and their user stories
       for (const feature of breakdown.features) {
@@ -509,7 +516,7 @@ export function ExportSection() {
         description: `${breakdown.features.length} features and their user stories have been exported to Azure DevOps`,
       });
       
-      setShowAzureDialog(false);
+      setShowEpicDialog(false);
     } catch (error: any) {
       console.error('Export error:', error);
       toast({
@@ -568,13 +575,13 @@ export function ExportSection() {
         Export your project breakdown and estimations in various formats for further planning and collaboration.
       </p>
 
-      {/* Azure DevOps Connection Dialog */}
+      {/* Initial Azure DevOps Connection Dialog */}
       <Dialog open={showAzureDialog} onOpenChange={setShowAzureDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Connect to Azure DevOps</DialogTitle>
             <DialogDescription>
-              Enter your Azure DevOps details to export features and user stories.
+              Enter your Azure DevOps organization and Personal Access Token (PAT).
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -606,7 +613,38 @@ export function ExportSection() {
                 className="col-span-3"
               />
             </div>
-            
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAzureDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={connectToAzure} 
+              disabled={isLoadingProjects || !azureConfig.organization || !azureConfig.pat}
+            >
+              {isLoadingProjects ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Connect'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Selection Dialog */}
+      <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Azure DevOps Project</DialogTitle>
+            <DialogDescription>
+              Choose the project where you want to export your features and user stories.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
             {/* Project Selection */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="project" className="text-right">
@@ -615,8 +653,8 @@ export function ExportSection() {
               <div className="col-span-3 flex gap-2">
                 <Select 
                   value={azureConfig.project} 
-                  onValueChange={(value) => setAzureConfig({ ...azureConfig, project: value })}
-                  disabled={projects.length === 0 || isLoadingProjects}
+                  onValueChange={(value) => setAzureConfig(prev => ({ ...prev, project: value }))}
+                  disabled={projects.length === 0}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select project" />
@@ -629,101 +667,103 @@ export function ExportSection() {
                     ))}
                   </SelectContent>
                 </Select>
-                {isLoadingProjects && <Loader2 className="h-5 w-5 animate-spin" />}
               </div>
             </div>
-            
-            {/* Team Selection */}
-            {azureConfig.project && (
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowProjectDialog(false);
+              setShowAzureDialog(true);
+            }}>
+              Back
+            </Button>
+            <Button 
+              onClick={selectProject} 
+              disabled={!azureConfig.project}
+            >
+              Select Project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Epic Selection Dialog */}
+      <Dialog open={showEpicDialog} onOpenChange={setShowEpicDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Epic Selection</DialogTitle>
+            <DialogDescription>
+              Choose to create a new epic or use an existing epic.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={createNewEpic ? "default" : "outline"}
+                onClick={() => setCreateNewEpic(true)}
+                className="flex-1"
+              >
+                Create New Epic
+              </Button>
+              <Button
+                variant={!createNewEpic ? "default" : "outline"}
+                onClick={() => setCreateNewEpic(false)}
+                className="flex-1"
+              >
+                Use Existing Epic
+              </Button>
+            </div>
+
+            {createNewEpic ? (
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="team" className="text-right">
-                  Team
+                <Label htmlFor="epicName" className="text-right">
+                  Epic Name
                 </Label>
-                <div className="col-span-3 flex gap-2">
-                  <Select 
-                    value={azureConfig.teamId} 
-                    onValueChange={(value) => setAzureConfig({ ...azureConfig, teamId: value })}
-                    disabled={teams.length === 0 || isLoadingTeams}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isLoadingTeams && <Loader2 className="h-5 w-5 animate-spin" />}
-                </div>
+                <Input
+                  id="epicName"
+                  placeholder="New Epic Name"
+                  value={newEpicName}
+                  onChange={(e) => setNewEpicName(e.target.value)}
+                  className="col-span-3"
+                />
               </div>
-            )}
-            
-            {/* Iteration Path Selection */}
-            {azureConfig.teamId && (
+            ) : (
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="iteration" className="text-right">
-                  Iteration
+                <Label htmlFor="existingEpic" className="text-right">
+                  Existing Epic
                 </Label>
                 <div className="col-span-3 flex gap-2">
                   <Select 
-                    value={azureConfig.iterationPath} 
-                    onValueChange={(value) => setAzureConfig({ ...azureConfig, iterationPath: value })}
-                    disabled={iterations.length === 0 || isLoadingPaths}
+                    value={selectedEpic?.toString() || ""} 
+                    onValueChange={(value) => setSelectedEpic(parseInt(value))}
+                    disabled={epics.length === 0 || isLoadingEpics}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select iteration (optional)" />
+                      <SelectValue placeholder="Select epic" />
                     </SelectTrigger>
                     <SelectContent>
-                      {iterations.map((iteration) => (
-                        <SelectItem key={iteration.id} value={iteration.path}>
-                          {iteration.name}
+                      {epics.map((epic) => (
+                        <SelectItem key={epic.id} value={epic.id.toString()}>
+                          {epic.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {isLoadingPaths && <Loader2 className="h-5 w-5 animate-spin" />}
-                </div>
-              </div>
-            )}
-            
-            {/* Area Path Selection */}
-            {azureConfig.teamId && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="area" className="text-right">
-                  Area Path
-                </Label>
-                <div className="col-span-3 flex gap-2">
-                  <Select 
-                    value={azureConfig.areaPath} 
-                    onValueChange={(value) => setAzureConfig({ ...azureConfig, areaPath: value })}
-                    disabled={areas.length === 0 || isLoadingPaths}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select area path (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map((area) => (
-                        <SelectItem key={area.id} value={area.path}>
-                          {area.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isLoadingPaths && <Loader2 className="h-5 w-5 animate-spin" />}
+                  {isLoadingEpics && <Loader2 className="h-5 w-5 animate-spin" />}
                 </div>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAzureDialog(false)}>
-              Cancel
+            <Button variant="outline" onClick={() => {
+              setShowEpicDialog(false);
+              setShowProjectDialog(true);
+            }}>
+              Back
             </Button>
             <Button 
               onClick={handleAzureExport} 
-              disabled={isExporting || !azureConfig.organization || !azureConfig.project || !azureConfig.pat}
+              disabled={isExporting || (createNewEpic ? !newEpicName : !selectedEpic)}
             >
               {isExporting ? (
                 <>
