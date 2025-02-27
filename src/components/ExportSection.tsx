@@ -47,6 +47,11 @@ interface AzureAreaPath {
   path: string;
 }
 
+interface AzureWorkItemRelation {
+  rel: string;
+  url: string;
+}
+
 export function ExportSection() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -97,6 +102,38 @@ export function ExportSection() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Load Azure DevOps settings from Supabase when session is available
+  useEffect(() => {
+    const loadAzureSettings = async () => {
+      if (!session?.user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('user_azure_settings')
+          .select('organization, last_project')
+          .eq('user_id', session.user.id)
+          .single();
+          
+        if (error) {
+          console.error('Error loading Azure settings:', error);
+          return;
+        }
+        
+        if (data) {
+          setAzureConfig(prev => ({
+            ...prev,
+            organization: data.organization || '',
+            project: data.last_project || ''
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to load Azure settings:', error);
+      }
+    };
+    
+    loadAzureSettings();
+  }, [session]);
 
   const handleExport = (type: string) => {
     if (!session) {
@@ -259,13 +296,67 @@ export function ExportSection() {
     }
   }, [azureConfig.organization, azureConfig.project, azureConfig.teamId, azureConfig.pat]);
 
+  const saveAzureSettings = async () => {
+    if (!session?.user || !azureConfig.organization) return;
+    
+    try {
+      // Encrypt the PAT on the backend for security
+      const { error: encryptError } = await supabase.functions.invoke('encrypt-azure-pat', {
+        body: { 
+          userId: session.user.id,
+          pat: azureConfig.pat
+        }
+      });
+      
+      if (encryptError) {
+        console.error('Failed to encrypt PAT:', encryptError);
+        return;
+      }
+      
+      // Save organization and last project used
+      const { error: saveError } = await supabase
+        .from('user_azure_settings')
+        .upsert({
+          user_id: session.user.id,
+          organization: azureConfig.organization,
+          last_project: azureConfig.project
+        }, { onConflict: 'user_id' });
+      
+      if (saveError) {
+        console.error('Failed to save Azure settings:', saveError);
+      }
+    } catch (error) {
+      console.error('Error saving Azure settings:', error);
+    }
+  };
+
+  const getPAT = async () => {
+    if (!session?.user) return null;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('get-azure-pat', {
+        body: { userId: session.user.id }
+      });
+      
+      if (error) {
+        console.error('Failed to get PAT:', error);
+        return null;
+      }
+      
+      return data?.pat || null;
+    } catch (error) {
+      console.error('Error getting PAT:', error);
+      return null;
+    }
+  };
+
   const createWorkItem = async (type: string, title: string, description: string, parentId?: number): Promise<number> => {
     const headers = new Headers();
     headers.append('Authorization', 'Basic ' + btoa(':' + azureConfig.pat));
     headers.append('Content-Type', 'application/json-patch+json');
     
     // Prepare fields including area and iteration paths if specified
-    let fields = [
+    let fields: Array<{op: string, path: string, value: string}> = [
       {
         "op": "add",
         "path": "/fields/System.Title",
@@ -277,18 +368,6 @@ export function ExportSection() {
         "value": description
       }
     ];
-    
-    // Add parent relation if provided
-    if (parentId) {
-      fields.push({
-        "op": "add",
-        "path": "/relations/-",
-        "value": {
-          "rel": "System.LinkTypes.Hierarchy-Reverse",
-          "url": `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workItems/${parentId}`
-        }
-      });
-    }
     
     // Add area path if specified
     if (azureConfig.areaPath) {
@@ -308,6 +387,7 @@ export function ExportSection() {
       });
     }
     
+    // Create the work item first
     const response = await fetch(
       `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workitems/$${type}?api-version=7.0`,
       {
@@ -323,7 +403,41 @@ export function ExportSection() {
     }
     
     const data = await response.json();
-    return data.id;
+    const newItemId = data.id;
+    
+    // If there's a parent ID, create the parent-child relationship in a separate call
+    if (parentId) {
+      const relationHeaders = new Headers();
+      relationHeaders.append('Authorization', 'Basic ' + btoa(':' + azureConfig.pat));
+      relationHeaders.append('Content-Type', 'application/json-patch+json');
+      
+      const relationFields = [
+        {
+          "op": "add",
+          "path": "/relations/-",
+          "value": {
+            "rel": "System.LinkTypes.Hierarchy-Reverse",
+            "url": `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workItems/${parentId}`
+          }
+        }
+      ];
+      
+      const relationResponse = await fetch(
+        `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workitems/${newItemId}?api-version=7.0`,
+        {
+          method: 'PATCH',
+          headers: relationHeaders,
+          body: JSON.stringify(relationFields)
+        }
+      );
+      
+      if (!relationResponse.ok) {
+        const errorText = await relationResponse.text();
+        console.warn(`Warning: Failed to set parent relationship: ${relationResponse.statusText} - ${errorText}`);
+      }
+    }
+    
+    return newItemId;
   };
 
   const handleAzureExport = async () => {
@@ -343,6 +457,9 @@ export function ExportSection() {
         title: "Export Started",
         description: "Connecting to Azure DevOps...",
       });
+
+      // Save Azure settings including encrypted PAT
+      await saveAzureSettings();
 
       // Check if we have any features to export
       if (!breakdown || breakdown.length === 0) {
