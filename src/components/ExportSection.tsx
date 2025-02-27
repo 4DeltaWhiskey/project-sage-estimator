@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserStory } from "@/types/project";
+import { UserStory, Breakdown } from "@/types/project";
 
 interface AzureProject {
   id: string;
@@ -73,7 +73,7 @@ export function ExportSection() {
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [isLoadingPaths, setIsLoadingPaths] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [breakdown, setBreakdown] = useState<UserStory[]>([]);
+  const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
 
   // Check for session on component mount
   useEffect(() => {
@@ -92,9 +92,7 @@ export function ExportSection() {
     if (storedBreakdown) {
       try {
         const parsed = JSON.parse(storedBreakdown);
-        if (Array.isArray(parsed.features)) {
-          setBreakdown(parsed.features);
-        }
+        setBreakdown(parsed);
       } catch (error) {
         console.error('Failed to parse stored breakdown:', error);
       }
@@ -464,6 +462,11 @@ export function ExportSection() {
         return;
       }
 
+      // Check if we have any features to export
+      if (!breakdown || !breakdown.features || breakdown.features.length === 0) {
+        throw new Error("No features to export. Please generate a project breakdown first.");
+      }
+
       setIsExporting(true);
       toast({
         title: "Export Started",
@@ -473,11 +476,6 @@ export function ExportSection() {
       // Save Azure settings including encrypted PAT
       await saveAzureSettings();
 
-      // Check if we have any features to export
-      if (!breakdown || breakdown.length === 0) {
-        throw new Error("No features to export. Please generate a project breakdown first.");
-      }
-
       // Create a parent Epic for the whole project
       const epicId = await createWorkItem(
         "Epic", 
@@ -486,7 +484,7 @@ export function ExportSection() {
       );
 
       // Create features and their user stories
-      for (const feature of breakdown) {
+      for (const feature of breakdown.features) {
         // Create feature as a Feature work item
         const featureId = await createWorkItem(
           "Feature", 
@@ -508,7 +506,7 @@ export function ExportSection() {
 
       toast({
         title: "Export Complete",
-        description: `${breakdown.length} features and their user stories have been exported to Azure DevOps`,
+        description: `${breakdown.features.length} features and their user stories have been exported to Azure DevOps`,
       });
       
       setShowAzureDialog(false);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { LogOut, LogIn } from "lucide-react";
@@ -99,6 +100,13 @@ const Index = () => {
       fetchRecentPrompts();
     }
   }, [session]);
+
+  // Store breakdown in localStorage whenever it changes
+  useEffect(() => {
+    if (breakdown) {
+      localStorage.setItem('projectBreakdown', JSON.stringify(breakdown));
+    }
+  }, [breakdown]);
 
   const fetchRecentPrompts = async () => {
     const { data, error } = await supabase
