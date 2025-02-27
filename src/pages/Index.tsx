@@ -387,7 +387,7 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="relative space-y-8">
           {session && recentPrompts.length > 0 && (
             <RecentPrompts
               prompts={recentPrompts}
@@ -404,7 +404,7 @@ const Index = () => {
           />
 
           {breakdown && (
-            <>
+            <div className="space-y-8 relative">
               <ProjectSummary features={breakdown.features} />
 
               <TechnicalConstraints
@@ -430,7 +430,7 @@ const Index = () => {
 
               <ConsultationSection />
               <ExportSection />
-            </>
+            </div>
           )}
         </div>
 
