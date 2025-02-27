@@ -109,9 +109,10 @@ export function ExportSection() {
       if (!session?.user) return;
       
       try {
+        // This is a type-safe way to query a table that might not be in the types yet
         const { data, error } = await supabase
           .from('user_azure_settings')
-          .select('organization, last_project')
+          .select('*')
           .eq('user_id', session.user.id)
           .single();
           
@@ -121,11 +122,23 @@ export function ExportSection() {
         }
         
         if (data) {
+          // Safely access properties that TypeScript might not recognize yet
           setAzureConfig(prev => ({
             ...prev,
             organization: data.organization || '',
             project: data.last_project || ''
           }));
+          
+          // If we have a stored PAT, try to load it
+          if (data.encrypted_pat) {
+            const storedPat = await getPAT();
+            if (storedPat) {
+              setAzureConfig(prev => ({
+                ...prev,
+                pat: storedPat
+              }));
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load Azure settings:', error);
@@ -313,14 +326,13 @@ export function ExportSection() {
         return;
       }
       
-      // Save organization and last project used
+      // Save organization and last project used - use a type-safe approach
       const { error: saveError } = await supabase
-        .from('user_azure_settings')
-        .upsert({
-          user_id: session.user.id,
-          organization: azureConfig.organization,
-          last_project: azureConfig.project
-        }, { onConflict: 'user_id' });
+        .rpc('upsert_azure_settings', {
+          p_user_id: session.user.id,
+          p_organization: azureConfig.organization,
+          p_last_project: azureConfig.project
+        });
       
       if (saveError) {
         console.error('Failed to save Azure settings:', saveError);

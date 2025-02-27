@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      user_azure_settings: {
+        Row: {
+          created_at: string
+          encrypted_pat: string | null
+          id: string
+          last_project: string | null
+          organization: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_pat?: string | null
+          id?: string
+          last_project?: string | null
+          organization: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_pat?: string | null
+          id?: string
+          last_project?: string | null
+          organization?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_prompts: {
         Row: {
           created_at: string
