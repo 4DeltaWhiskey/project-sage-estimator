@@ -56,7 +56,6 @@ const Index = () => {
     name: string;
     description: string;
     userStories: string;
-    technicalComponents: string;
   } | null>(null);
   const { toast } = useToast();
 
@@ -123,6 +122,80 @@ const Index = () => {
     await fetchRecentPrompts();
   };
 
+  const startEditing = (index: number, feature: UserStory) => {
+    setEditingFeature(index);
+    setEditedContent({
+      name: feature.name,
+      description: feature.description,
+      userStories: feature.userStories.join('\n')
+    });
+  };
+
+  const saveEdits = async (index: number) => {
+    if (!editedContent || !breakdown) return;
+
+    const updatedFeatures = [...breakdown.features];
+    updatedFeatures[index] = {
+      ...updatedFeatures[index],
+      name: editedContent.name,
+      description: editedContent.description,
+      userStories: editedContent.userStories.split('\n').filter(story => story.trim())
+    };
+
+    try {
+      toast({
+        title: "Updating Project",
+        description: "Recalculating project breakdown and estimations...",
+      });
+
+      const { data: newBreakdown, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
+        body: {
+          description: projectDescription,
+          currentFeatures: updatedFeatures
+        }
+      });
+
+      if (breakdownError) throw breakdownError;
+
+      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+        body: {
+          description: projectDescription,
+          breakdown: { 
+            features: newBreakdown.features,
+            technicalComponents: newBreakdown.technicalComponents 
+          },
+          hourlyRate: 50
+        }
+      });
+
+      if (estimationError) throw estimationError;
+
+      const enhancedBreakdown: Breakdown = {
+        features: newBreakdown.features.map((feature: UserStory, i: number) => ({
+          ...feature,
+          estimation: estimationData.estimations[i]
+        })),
+        technicalComponents: newBreakdown.technicalComponents
+      };
+      
+      setBreakdown(enhancedBreakdown);
+      setEditingFeature(null);
+      setEditedContent(null);
+
+      toast({
+        title: "Project Updated",
+        description: "The project has been updated with consistent technical components.",
+      });
+    } catch (error) {
+      console.error('Error updating project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update project and recalculate estimations. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const generateBreakdown = async () => {
     if (!projectDescription.trim()) {
       toast({
@@ -161,13 +234,14 @@ const Index = () => {
       });
       if (estimationError) throw estimationError;
 
-      const enhancedBreakdown = {
+      const enhancedBreakdown: Breakdown = {
         features: data.features.map((feature: UserStory, index: number) => ({
           ...feature,
           estimation: estimationData.estimations[index]
         })),
         technicalComponents: data.technicalComponents || []
       };
+      
       setBreakdown(enhancedBreakdown);
       toast({
         title: "Breakdown Generated",
@@ -226,78 +300,6 @@ const Index = () => {
       toast({
         title: "Logout Failed",
         description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const startEditing = (index: number, feature: UserStory) => {
-    setEditingFeature(index);
-    setEditedContent({
-      name: feature.name,
-      description: feature.description,
-      userStories: feature.userStories.join('\n'),
-      technicalComponents: feature.technicalComponents.join('\n'),
-    });
-  };
-
-  const saveEdits = async (index: number) => {
-    if (!editedContent) return;
-
-    const updatedFeatures = [...(breakdown?.features || [])];
-    updatedFeatures[index] = {
-      ...updatedFeatures[index],
-      name: editedContent.name,
-      description: editedContent.description,
-      userStories: editedContent.userStories.split('\n').filter(story => story.trim()),
-      technicalComponents: editedContent.technicalComponents.split('\n').filter(tech => tech.trim()),
-    };
-
-    try {
-      toast({
-        title: "Updating Project",
-        description: "Recalculating project breakdown and estimations...",
-      });
-
-      const { data: newBreakdown, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
-        body: {
-          description: projectDescription,
-          currentFeatures: updatedFeatures
-        }
-      });
-
-      if (breakdownError) throw breakdownError;
-
-      const { data: estimationData, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
-        body: {
-          description: projectDescription,
-          breakdown: { features: newBreakdown.features },
-          hourlyRate: 50
-        }
-      });
-
-      if (estimationError) throw estimationError;
-
-      const enhancedBreakdown = {
-        features: newBreakdown.features.map((feature: UserStory, i: number) => ({
-          ...feature,
-          estimation: estimationData.estimations[i]
-        }))
-      };
-
-      setBreakdown(enhancedBreakdown);
-      setEditingFeature(null);
-      setEditedContent(null);
-
-      toast({
-        title: "Project Updated",
-        description: "The project has been updated with consistent technical components across all features.",
-      });
-    } catch (error) {
-      console.error('Error updating project:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update project and recalculate estimations. Please try again.",
         variant: "destructive",
       });
     }
@@ -436,17 +438,6 @@ const Index = () => {
                                   onChange={(e) => setEditedContent(prev => ({ ...prev!, userStories: e.target.value }))}
                                   className="w-full"
                                   placeholder="Enter user stories, one per line"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-sm font-medium text-teal-600 dark:text-teal-400 block mb-2">
-                                  Technical Components (one per line)
-                                </label>
-                                <Textarea
-                                  value={editedContent?.technicalComponents}
-                                  onChange={(e) => setEditedContent(prev => ({ ...prev!, technicalComponents: e.target.value }))}
-                                  className="w-full"
-                                  placeholder="Enter technical components, one per line"
                                 />
                               </div>
                               <div className="flex justify-end gap-2">
