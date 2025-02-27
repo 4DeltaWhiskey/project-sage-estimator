@@ -111,58 +111,50 @@ const Index = () => {
   };
 
   const handleTechnicalComponentsSave = async (components: string[]) => {
-    try {
-      toast({
-        title: "Updating Project",
-        description: "Recalculating project breakdown and estimations...",
-      });
-
-      const { data: estimationResponse, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
-        body: {
-          description: projectDescription,
-          breakdown: { 
-            features: breakdown!.features,
-            technicalComponents: components 
-          },
-          hourlyRate: 50
-        }
-      });
-
-      console.log('Estimation response after technical update:', { data: estimationResponse, error: estimationError });
-
-      if (estimationError || estimationResponse?.error) {
-        throw new Error(estimationResponse?.error || estimationError.message || 'Failed to generate estimates');
+    if (!breakdown) return;
+    
+    const { data: estimationResponse, error: estimationError } = await supabase.functions.invoke('generate-estimate', {
+      body: {
+        description: projectDescription,
+        breakdown: { 
+          features: breakdown.features.map(({ name, description, userStories }) => ({
+            name,
+            description,
+            userStories
+          })),
+          technicalComponents: components 
+        },
+        hourlyRate: 50
       }
+    });
 
-      if (!estimationResponse || !estimationResponse.estimations || !Array.isArray(estimationResponse.estimations)) {
-        console.error('Invalid estimation response:', estimationResponse);
-        throw new Error('Invalid estimation format');
-      }
+    console.log('Estimation response after technical update:', { data: estimationResponse, error: estimationError });
 
-      const updatedBreakdown: Breakdown = {
-        features: breakdown!.features.map((feature, i) => ({
-          ...feature,
-          estimation: estimationResponse.estimations[i]
-        })),
-        technicalComponents: components
-      };
-
-      console.log('Updated breakdown with new estimations:', updatedBreakdown);
-      
-      setBreakdown(updatedBreakdown);
-
-      toast({
-        title: "Project Updated",
-        description: "Technical constraints and estimations have been recalculated.",
-      });
-    } catch (error: any) {
-      console.error('Error updating technical constraints:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update technical constraints. Please try again.",
-        variant: "destructive",
-      });
+    if (estimationError || estimationResponse?.error) {
+      throw new Error(estimationResponse?.error || estimationError.message || 'Failed to generate estimates');
     }
+
+    if (!estimationResponse || !estimationResponse.estimations || !Array.isArray(estimationResponse.estimations)) {
+      console.error('Invalid estimation response:', estimationResponse);
+      throw new Error('Invalid estimation format');
+    }
+
+    const updatedBreakdown: Breakdown = {
+      features: breakdown.features.map((feature, i) => ({
+        ...feature,
+        estimation: estimationResponse.estimations[i]
+      })),
+      technicalComponents: components
+    };
+
+    console.log('Updated breakdown with new estimations:', updatedBreakdown);
+    
+    setBreakdown(updatedBreakdown);
+
+    toast({
+      title: "Project Updated",
+      description: "Technical constraints and estimations have been recalculated.",
+    });
   };
 
   const handleFeatureEdit = (index: number, feature: UserStory) => {

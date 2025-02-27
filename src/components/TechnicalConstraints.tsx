@@ -7,7 +7,7 @@ import { LoadingDialog } from "@/components/LoadingDialog";
 
 interface TechnicalConstraintsProps {
   technicalComponents: string[];
-  onSave: (components: string[]) => void;
+  onSave: (components: string[]) => Promise<void>;
 }
 
 export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalConstraintsProps) {
@@ -17,12 +17,17 @@ export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalC
 
   const handleSave = async () => {
     setIsLoading(true);
-    const components = editedComponents
-      .split('\n')
-      .filter(tech => tech.trim());
-    await onSave(components);
-    setIsEditing(false);
-    setIsLoading(false);
+    try {
+      const components = editedComponents
+        .split('\n')
+        .filter(tech => tech.trim());
+      await onSave(components);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving technical constraints:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -40,6 +45,7 @@ export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalC
             setEditedComponents(technicalComponents.join('\n'));
           }}
           className="text-violet-600 dark:text-violet-400"
+          disabled={isLoading}
         >
           <Pencil className="h-4 w-4 mr-2" />
           Refine
@@ -56,6 +62,7 @@ export function TechnicalConstraints({ technicalComponents, onSave }: TechnicalC
               onChange={(e) => setEditedComponents(e.target.value)}
               className="w-full min-h-[200px]"
               placeholder="Enter technical components, one per line"
+              disabled={isLoading}
             />
           </div>
           <div className="flex justify-end gap-2">
