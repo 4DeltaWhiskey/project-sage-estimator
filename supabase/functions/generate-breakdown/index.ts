@@ -36,7 +36,7 @@ Focus on:
 2. Core Features (maximum 6 essential features)
 3. User Stories (2-4 key stories per feature)
 
-Format the response as a JSON object with this exact structure:
+Respond with ONLY a valid JSON object matching this structure (no markdown, no backticks, no explanations):
 {
   "features": [
     {
@@ -82,16 +82,29 @@ Format the response as a JSON object with this exact structure:
       throw new Error('Invalid response format from OpenAI');
     }
 
-    const parsedContent = JSON.parse(data.choices[0].message.content);
+    // Clean up the content to ensure it's valid JSON
+    let content = data.choices[0].message.content.trim();
+    // Remove any markdown code block indicators if present
+    content = content.replace(/^```json\s*/, '').replace(/```$/, '');
     
-    if (!parsedContent.features || !Array.isArray(parsedContent.features) || !parsedContent.technicalComponents || !Array.isArray(parsedContent.technicalComponents)) {
-      throw new Error('Invalid breakdown format: missing features or technical components array');
-    }
+    try {
+      const parsedContent = JSON.parse(content);
+      
+      if (!parsedContent.features || !Array.isArray(parsedContent.features) || !parsedContent.technicalComponents || !Array.isArray(parsedContent.technicalComponents)) {
+        throw new Error('Invalid breakdown format: missing features or technical components array');
+      }
 
-    return new Response(JSON.stringify(parsedContent), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
-    });
+      console.log('Successfully parsed content:', parsedContent);
+
+      return new Response(JSON.stringify(parsedContent), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    } catch (parseError) {
+      console.error('Error parsing OpenAI response:', parseError);
+      console.error('Content that failed to parse:', content);
+      throw new Error('Failed to parse OpenAI response as JSON');
+    }
   } catch (error) {
     console.error('Error in generate-breakdown function:', error);
     return new Response(
@@ -101,7 +114,7 @@ Format the response as a JSON object with this exact structure:
         error: error.message || 'Failed to generate project breakdown'
       }),
       {
-        status: 200, // Changed to 200 to prevent client-side rejection
+        status: 200, // Using 200 to prevent client-side rejection
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
