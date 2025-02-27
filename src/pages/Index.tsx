@@ -23,7 +23,27 @@ const loadingMessages = [
   "📊 Converting coffee cups to code quality...",
   "🎪 Juggling features and deadlines...",
   "🎭 Performing interpretive dance to understand requirements...",
-  "🎪 Training monkeys to write clean code..."
+  "🎪 Training monkeys to write clean code...",
+  "🎨 Painting your requirements in abstract art...",
+  "🎮 Debugging with a rubber duck committee...",
+  "🌟 Consulting the programming zodiac signs...",
+  "🎓 Sending AI to coding boot camp...",
+  "🎭 Rehearsing the code's Shakespeare monologue...",
+  "🎪 Teaching elephants to write unit tests...",
+  "🎯 Measuring complexity in unicorn points...",
+  "🎲 Playing rock, paper, scissors with bugs...",
+  "🎨 Color-coding your requirements in rainbow...",
+  "🎭 Hosting a ted talk for your code snippets...",
+  "🤖 Running code through our quantum toaster...",
+  "🎪 Teaching cats to review pull requests...",
+  "🎯 Calculating estimates in dog years...",
+  "🎲 Consulting with our team of AI philosophers...",
+  "🎨 Drawing blueprints with digital crayons...",
+  "🎭 Performing code poetry slam...",
+  "🎪 Training pigeons for cloud computing...",
+  "🔮 Reading your code's fortune cookies...",
+  "🎯 Measuring features in smiles per hour...",
+  "🤖 Running standup meeting with robot comedians..."
 ];
 
 const Index = () => {
