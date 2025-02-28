@@ -252,6 +252,8 @@ export function ExportSection() {
     try {
       const headers = new Headers();
       headers.append('Authorization', 'Basic ' + btoa(':' + azureConfig.pat));
+      headers.append('Content-Type', 'application/json');
+      headers.append('Accept', 'application/json');
       
       // Use WIQL to query for Epic type work items
       const wiqlQuery = {
@@ -262,35 +264,45 @@ export function ExportSection() {
         `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/wiql?api-version=7.0`,
         { 
           method: 'POST',
-          headers: { 
-            ...headers,
-            'Content-Type': 'application/json'
-          },
+          headers,
           body: JSON.stringify(wiqlQuery)
         }
       );
       
       if (!wiqlResponse.ok) {
+        const contentType = wiqlResponse.headers.get('content-type');
+        if (contentType && contentType.indexOf('application/json') === -1) {
+          console.warn('Server returned non-JSON response:', await wiqlResponse.text());
+          // If not JSON, we'll assume there are no epics and return an empty list
+          setEpics([]);
+          return;
+        }
         throw new Error(`Failed to fetch epics: ${wiqlResponse.statusText}`);
       }
       
       const wiqlData = await wiqlResponse.json();
       
-      if (wiqlData.workItems && wiqlData.workItems.length > 0) {
-        // Get detailed info for each epic
-        const ids = wiqlData.workItems.map((item: any) => item.id).join(',');
-        
-        const detailsResponse = await fetch(
-          `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workitems?ids=${ids}&api-version=7.0`,
-          { headers }
-        );
-        
-        if (!detailsResponse.ok) {
-          throw new Error(`Failed to fetch epic details: ${detailsResponse.statusText}`);
-        }
-        
-        const detailsData = await detailsResponse.json();
-        
+      if (!wiqlData.workItems || wiqlData.workItems.length === 0) {
+        // No epics found, return an empty list
+        setEpics([]);
+        return;
+      }
+
+      // Get detailed info for each epic
+      const ids = wiqlData.workItems.map((item: any) => item.id).join(',');
+      
+      const detailsResponse = await fetch(
+        `https://dev.azure.com/${azureConfig.organization}/${azureConfig.project}/_apis/wit/workitems?ids=${ids}&api-version=7.0`,
+        { headers }
+      );
+      
+      if (!detailsResponse.ok) {
+        throw new Error(`Failed to fetch epic details: ${detailsResponse.statusText}`);
+      }
+      
+      const detailsData = await detailsResponse.json();
+      
+      if (detailsData.value && detailsData.value.length > 0) {
         const fetchedEpics = detailsData.value.map((epic: any) => ({
           id: epic.id,
           name: epic.fields['System.Title']
@@ -304,9 +316,11 @@ export function ExportSection() {
       console.error('Error fetching epics:', error);
       toast({
         title: "Error Fetching Epics",
-        description: error.message || "Failed to load Epics",
-        variant: "destructive",
+        description: "Empty backlog is fine - you can create a new epic instead.",
+        variant: "info",
       });
+      // Set epics to empty array to allow continuing even if there was an error
+      setEpics([]);
     } finally {
       setIsLoadingEpics(false);
     }
@@ -371,7 +385,8 @@ export function ExportSection() {
       const { error: encryptError } = await supabase.functions.invoke('encrypt-azure-pat', {
         body: { 
           userId: session.user.id,
-          pat: azureConfig.pat
+          pat: azureConfig.pat,
+          organization: azureConfig.organization
         }
       });
       
@@ -753,7 +768,9 @@ export function ExportSection() {
               <Button
                 variant={!createNewEpic ? "default" : "outline"}
                 onClick={() => setCreateNewEpic(false)}
+                disabled={epics.length === 0}
                 className="flex-1"
+                title={epics.length === 0 ? "No existing epics found" : ""}
               >
                 Use Existing Epic
               </Button>
@@ -784,18 +801,28 @@ export function ExportSection() {
                     disabled={epics.length === 0 || isLoadingEpics}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select epic" />
+                      <SelectValue placeholder={epics.length === 0 ? "No epics available" : "Select epic"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {epics.map((epic) => (
-                        <SelectItem key={epic.id} value={epic.id.toString()}>
-                          {epic.name}
-                        </SelectItem>
-                      ))}
+                      {epics.length === 0 ? (
+                        <SelectItem value="" disabled>No epics found</SelectItem>
+                      ) : (
+                        epics.map((epic) => (
+                          <SelectItem key={epic.id} value={epic.id.toString()}>
+                            {epic.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   {isLoadingEpics && <Loader2 className="h-5 w-5 animate-spin" />}
                 </div>
+              </div>
+            )}
+            
+            {epics.length === 0 && !createNewEpic && (
+              <div className="text-amber-500 text-sm">
+                No existing epics found in the project. You can create a new one instead.
               </div>
             )}
           </div>
