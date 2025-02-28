@@ -28,7 +28,7 @@ export function BuildWithLovableModal({
   projectDescription,
 }: BuildWithLovableModalProps) {
   const [generatedPrompt, setGeneratedPrompt] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -40,11 +40,20 @@ export function BuildWithLovableModal({
       setIsGenerating(true);
       setError(null);
       generatePromptWithAI();
+    } else if (!open) {
+      // Reset state when modal closes
+      setGeneratedPrompt("");
+      setIsGenerating(false);
+      setError(null);
     }
   }, [open, breakdown, projectDescription]);
 
   const generatePromptWithAI = async () => {
-    console.log("Calling Supabase edge function...");
+    console.log("Calling Supabase edge function with data:", { 
+      projectDescription: projectDescription?.substring(0, 100) + "...",
+      breakdownPreview: breakdown ? "Present" : "Missing" 
+    });
+    
     try {
       // Call the Supabase edge function to generate the prompt
       const { data, error: functionError } = await supabase.functions.invoke('generate-lovable-prompt', {
@@ -54,7 +63,8 @@ export function BuildWithLovableModal({
         }
       });
 
-      console.log("Edge function response:", { data, error: functionError });
+      console.log("Edge function response received:", data ? "Data present" : "No data", 
+        functionError ? `Error: ${functionError.message}` : "No error");
 
       if (functionError) {
         console.error('Error from edge function:', functionError);
@@ -68,7 +78,19 @@ export function BuildWithLovableModal({
         return;
       }
 
-      if (data?.error) {
+      if (!data) {
+        console.error('Empty response from edge function');
+        setError("Received empty response from AI service");
+        toast({
+          title: "Error",
+          description: "Received empty response from AI service.",
+          variant: "destructive",
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      if (data.error) {
         console.error('AI service error:', data.error);
         setError(`AI service error: ${data.error}`);
         toast({
@@ -80,21 +102,26 @@ export function BuildWithLovableModal({
         return;
       }
 
-      if (!data || !data.prompt) {
-        console.error('Invalid response from edge function:', data);
-        setError("Received invalid response from AI service");
+      if (!data.prompt) {
+        console.error('No prompt in response:', data);
+        setError("No prompt in response from AI service");
         toast({
           title: "Error",
-          description: "Received invalid response from AI service.",
+          description: "No prompt in response from AI service.",
           variant: "destructive",
         });
         setIsGenerating(false);
         return;
       }
 
-      console.log("Prompt generated successfully");
+      console.log("Prompt generated successfully, length:", data.prompt.length);
       setGeneratedPrompt(data.prompt);
       setIsGenerating(false);
+      
+      toast({
+        title: "Success",
+        description: "Prompt generated successfully!",
+      });
     } catch (error: any) {
       console.error('Unexpected error during prompt generation:', error);
       setError(`Unexpected error: ${error.message}`);
@@ -133,6 +160,7 @@ export function BuildWithLovableModal({
   const handleRetry = () => {
     setIsGenerating(true);
     setError(null);
+    setGeneratedPrompt("");
     generatePromptWithAI();
   };
 
@@ -151,7 +179,7 @@ export function BuildWithLovableModal({
         <div className="flex-1 overflow-hidden flex flex-col mt-2">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-zinc-500 dark:text-zinc-400">
-              Generated Prompt
+              {isGenerating ? "Generating Prompt..." : "Generated Prompt"}
             </span>
             <div className="flex gap-2">
               {error && (
@@ -168,7 +196,7 @@ export function BuildWithLovableModal({
                 variant="outline" 
                 size="sm" 
                 onClick={handleCopy}
-                disabled={isGenerating || !!error}
+                disabled={isGenerating || !!error || !generatedPrompt}
                 className="flex items-center gap-1"
               >
                 {isCopied ? (
@@ -216,7 +244,7 @@ export function BuildWithLovableModal({
             ) : null}
             
             <pre className="h-full overflow-auto bg-white dark:bg-[#1A1F2C] text-black dark:text-white p-4 text-sm font-mono">
-              {generatedPrompt}
+              {generatedPrompt || "No prompt generated yet."}
             </pre>
           </div>
         </div>
