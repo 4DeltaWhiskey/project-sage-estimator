@@ -59,7 +59,7 @@ Respond with ONLY a valid JSON object matching this structure (no markdown, no b
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',  // Fixed model name
+        model: 'gpt-4.5-preview',  // Fixed model name
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: description }
