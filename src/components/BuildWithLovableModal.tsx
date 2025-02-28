@@ -12,6 +12,7 @@ import {
 import { Check, Copy, Loader2 } from "lucide-react";
 import { Breakdown } from "@/types/project";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BuildWithLovableModalProps {
   open: boolean;
@@ -29,59 +30,104 @@ export function BuildWithLovableModal({
   const [generatedPrompt, setGeneratedPrompt] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Generate a prompt when the modal opens
   useEffect(() => {
-    if (open) {
-      generatePrompt();
+    if (open && breakdown) {
+      generatePromptWithAI();
     }
   }, [open, breakdown, projectDescription]);
 
-  const generatePrompt = () => {
+  const generatePromptWithAI = async () => {
     setIsGenerating(true);
-    
-    // Create a delay to simulate processing
-    setTimeout(() => {
-      let prompt = "";
-      
-      // Add project description
-      prompt += `I want to build a web application with the following description:\n\n${projectDescription}\n\n`;
-      
-      // Add features and user stories
-      if (breakdown && breakdown.features.length > 0) {
-        prompt += "The application should include the following features:\n\n";
-        
-        breakdown.features.forEach((feature, index) => {
-          prompt += `${index + 1}. ${feature.name}: ${feature.description}\n`;
-          
-          // Add user stories for each feature
-          if (feature.userStories.length > 0) {
-            prompt += "   User Stories:\n";
-            feature.userStories.forEach((story, storyIdx) => {
-              prompt += `   - ${story}\n`;
-            });
-          }
-          
-          prompt += "\n";
+    setError(null);
+
+    try {
+      // Call the Supabase edge function to generate the prompt
+      const { data, error } = await supabase.functions.invoke('generate-lovable-prompt', {
+        body: { 
+          projectDescription, 
+          breakdown 
+        }
+      });
+
+      if (error) {
+        console.error('Error generating prompt:', error);
+        setError('Failed to generate prompt. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to generate prompt. Please try again.",
+          variant: "destructive",
         });
+        return;
       }
-      
-      // Add technical constraints
-      if (breakdown && breakdown.technicalComponents.length > 0) {
-        prompt += "Technical constraints and components to use:\n";
-        breakdown.technicalComponents.forEach((tech) => {
-          prompt += `- ${tech}\n`;
+
+      if (data.error) {
+        console.error('AI service error:', data.error);
+        setError('The AI service encountered an error. Please try again.');
+        toast({
+          title: "AI Service Error",
+          description: data.error,
+          variant: "destructive",
         });
-        prompt += "\n";
+        return;
       }
-      
-      // Add final instructions for Lovable
-      prompt += `Please create a responsive, modern web application based on these requirements using React, Typescript, and Tailwind CSS. Start by showing me a basic structure of the main page with navigation and key components.`;
-      
-      setGeneratedPrompt(prompt);
+
+      setGeneratedPrompt(data.prompt);
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred while generating the prompt.",
+        variant: "destructive",
+      });
+    } finally {
       setIsGenerating(false);
-    }, 1000);
+    }
+  };
+
+  // Fallback prompt generation in case the AI service is unavailable
+  const generateFallbackPrompt = () => {
+    let prompt = "";
+    
+    // Add project description
+    prompt += `I want to build a web application with the following description:\n\n${projectDescription}\n\n`;
+    
+    // Add features and user stories
+    if (breakdown && breakdown.features.length > 0) {
+      prompt += "The application should include the following features:\n\n";
+      
+      breakdown.features.forEach((feature, index) => {
+        prompt += `${index + 1}. ${feature.name}: ${feature.description}\n`;
+        
+        // Add user stories for each feature
+        if (feature.userStories.length > 0) {
+          prompt += "   User Stories:\n";
+          feature.userStories.forEach((story, storyIdx) => {
+            prompt += `   - ${story}\n`;
+          });
+        }
+        
+        prompt += "\n";
+      });
+    }
+    
+    // Add technical constraints
+    if (breakdown && breakdown.technicalComponents.length > 0) {
+      prompt += "Technical constraints and components to use:\n";
+      breakdown.technicalComponents.forEach((tech) => {
+        prompt += `- ${tech}\n`;
+      });
+      prompt += "\n";
+    }
+    
+    // Add final instructions for Lovable
+    prompt += `Please create a responsive, modern web application based on these requirements using React, Typescript, and Tailwind CSS. Start by showing me a basic structure of the main page with navigation and key components.`;
+    
+    return prompt;
   };
 
   const handleCopy = async () => {
@@ -107,6 +153,10 @@ export function BuildWithLovableModal({
     }
   };
 
+  const handleRetry = () => {
+    generatePromptWithAI();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl h-[80vh] flex flex-col">
@@ -124,25 +174,37 @@ export function BuildWithLovableModal({
             <span className="text-sm text-zinc-500 dark:text-zinc-400">
               Generated Prompt
             </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleCopy}
-              disabled={isGenerating}
-              className="flex items-center gap-1"
-            >
-              {isCopied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </>
+            <div className="flex gap-2">
+              {error && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRetry}
+                  className="flex items-center gap-1"
+                >
+                  Retry
+                </Button>
               )}
-            </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCopy}
+                disabled={isGenerating || !!error}
+                className="flex items-center gap-1"
+              >
+                {isCopied ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
           
           <div className="relative flex-1 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
@@ -151,8 +213,25 @@ export function BuildWithLovableModal({
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 className="h-8 w-8 animate-spin text-violet-600 dark:text-violet-400" />
                   <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Generating prompt...
+                    Generating prompt with AI...
                   </span>
+                </div>
+              </div>
+            ) : null}
+            
+            {error ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-4 max-w-md text-center">
+                  <span className="text-sm text-red-600 dark:text-red-400">
+                    {error}
+                  </span>
+                  <Button 
+                    variant="default" 
+                    onClick={handleRetry}
+                    className="bg-violet-600 hover:bg-violet-700 text-white"
+                  >
+                    Try Again
+                  </Button>
                 </div>
               </div>
             ) : null}

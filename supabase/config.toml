@@ -1,8 +1,52 @@
 
-project_id = "xeuewjqontwjoascymly"
+project_id = "ai-requirements-engineer"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+
+[auth.email]
+enabled = true
+
+[auth.sms]
+enabled = true
+
+[functions.encrypt-azure-pat]
+verify_jwt = true
+
+[functions.get-azure-pat]
+verify_jwt = true
 
 [functions.generate-breakdown]
 verify_jwt = false
 
 [functions.generate-estimate]
+verify_jwt = false
+
+[functions.generate-lovable-prompt]
 verify_jwt = false
