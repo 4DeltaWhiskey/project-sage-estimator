@@ -317,7 +317,7 @@ export function ExportSection() {
       toast({
         title: "Error Fetching Epics",
         description: "Empty backlog is fine - you can create a new epic instead.",
-        variant: "info",
+        variant: "default",  // Changed from "info" to "default" to fix the type error
       });
       // Set epics to empty array to allow continuing even if there was an error
       setEpics([]);
