@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, Github, CloudUpload, Loader2 } from "lucide-react";
+import { FileSpreadsheet, Github, CloudUpload, Loader2, Code } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -265,6 +265,15 @@ export function ExportSection() {
       title: "Export Started",
       description: `Generating ${type} file...`,
     });
+  };
+
+  const handleBuildWithLovable = () => {
+    toast({
+      title: "Build Started",
+      description: "Preparing to build your project with Lovable...",
+    });
+    // Here you would implement the actual functionality to build with Lovable
+    // For now, this is just a placeholder toast notification
   };
 
   const fetchAzureProjects = async () => {
@@ -710,10 +719,10 @@ export function ExportSection() {
         <Button 
           variant="outline"
           className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-          onClick={() => handleExport('MS Project')}
+          onClick={handleBuildWithLovable}
         >
-          <CloudUpload className="h-8 w-8" />
-          <span>Export to MS Project</span>
+          <Code className="h-8 w-8" />
+          <span>Build with Lovable</span>
         </Button>
       </div>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-4">
