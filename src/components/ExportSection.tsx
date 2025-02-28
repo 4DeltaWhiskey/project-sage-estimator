@@ -78,6 +78,7 @@ export function ExportSection() {
   const [selectedEpic, setSelectedEpic] = useState<number | null>(null);
   const [createNewEpic, setCreateNewEpic] = useState(true);
   const [newEpicName, setNewEpicName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
   const [iterations, setIterations] = useState<AzureIterationPath[]>([]);
   const [areas, setAreas] = useState<AzureAreaPath[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
@@ -86,6 +87,28 @@ export function ExportSection() {
   const [isLoadingPaths, setIsLoadingPaths] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+
+  // Generate a meaningful epic name from the project description
+  const generateEpicName = (description: string, features: UserStory[]) => {
+    // First try to extract meaningful words from the project description
+    if (description.trim()) {
+      const words = description.split(/\s+/);
+      if (words.length > 2) {
+        // Take first few words from description
+        const firstWords = words.slice(0, 5);
+        return `${firstWords.join(' ')}...`;
+      }
+    }
+
+    // If no description or it's too short, use feature names
+    if (features && features.length > 0) {
+      const featureNames = features.slice(0, 3).map(f => f.name.split(' ')[0]);
+      return `Project: ${featureNames.join(', ')}...`;
+    }
+
+    // Fallback
+    return "New Project";
+  };
 
   // Check for session on component mount
   useEffect(() => {
@@ -99,17 +122,23 @@ export function ExportSection() {
       setSession(session);
     });
 
-    // Try to get the current project breakdown from local storage
+    // Try to get the current project breakdown and description from local storage
     const storedBreakdown = localStorage.getItem('projectBreakdown');
+    const storedDescription = localStorage.getItem('projectDescription');
+    
+    if (storedDescription) {
+      setProjectDescription(storedDescription);
+    }
+    
     if (storedBreakdown) {
       try {
         const parsed = JSON.parse(storedBreakdown);
         setBreakdown(parsed);
         
-        // Generate a default epic name based on the project
+        // Generate epic name based on project description and features
         if (parsed && parsed.features && parsed.features.length > 0) {
-          const keywords = parsed.features.slice(0, 3).map(f => f.name.split(' ')[0]);
-          setNewEpicName(`Project: ${keywords.join(', ')}...`);
+          const suggestedName = generateEpicName(storedDescription || "", parsed.features);
+          setNewEpicName(suggestedName);
         }
       } catch (error) {
         console.error('Failed to parse stored breakdown:', error);
@@ -453,6 +482,7 @@ export function ExportSection() {
       if (!relationResponse.ok) {
         const errorText = await relationResponse.text();
         console.warn(`Warning: Failed to set parent relationship: ${relationResponse.statusText} - ${errorText}`);
+        throw new Error(`Failed to set parent relationship: ${relationResponse.statusText}`);
       }
     }
     
@@ -490,30 +520,45 @@ export function ExportSection() {
         throw new Error("Please select an epic or create a new one.");
       }
 
+      // Track the creation progress
+      let featuresCreated = 0;
+      let storiesCreated = 0;
+      const totalFeatures = breakdown.features.length;
+      const totalStories = breakdown.features.reduce((sum, feature) => sum + feature.userStories.length, 0);
+
       // Create features and their user stories
       for (const feature of breakdown.features) {
-        // Create feature as a Feature work item
-        const featureId = await createWorkItem(
-          "Feature", 
-          feature.name, 
-          feature.description,
-          epicId
-        );
-        
-        // Create user stories as User Story work items
-        for (const userStory of feature.userStories) {
-          await createWorkItem(
-            "User Story",
-            userStory,
-            `Part of feature: ${feature.name}`,
-            featureId
+        try {
+          // Create feature as a Feature work item under the epic
+          const featureId = await createWorkItem(
+            "Feature", 
+            feature.name, 
+            feature.description,
+            epicId // Set the epic as the parent for this feature
           );
+          
+          featuresCreated++;
+          
+          // Create user stories as User Story work items under the feature
+          for (const userStory of feature.userStories) {
+            await createWorkItem(
+              "User Story",
+              userStory,
+              `Part of feature: ${feature.name}`,
+              featureId // Set the feature as the parent for this user story
+            );
+            
+            storiesCreated++;
+          }
+        } catch (error) {
+          console.error(`Error creating feature "${feature.name}":`, error);
+          // Continue with other features even if one fails
         }
       }
 
       toast({
         title: "Export Complete",
-        description: `${breakdown.features.length} features and their user stories have been exported to Azure DevOps`,
+        description: `Created ${featuresCreated} features and ${storiesCreated} user stories in Azure DevOps`,
       });
       
       setShowEpicDialog(false);

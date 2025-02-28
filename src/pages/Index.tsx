@@ -108,6 +108,13 @@ const Index = () => {
     }
   }, [breakdown]);
 
+  // Store project description in localStorage whenever it changes
+  useEffect(() => {
+    if (projectDescription) {
+      localStorage.setItem('projectDescription', projectDescription);
+    }
+  }, [projectDescription]);
+
   const fetchRecentPrompts = async () => {
     const { data, error } = await supabase
       .from('user_prompts')
