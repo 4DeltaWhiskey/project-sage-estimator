@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface RecentPromptsProps {
-  prompts: { id: string; description: string; created_at: string }[];
-  onSelectPrompt: (description: string) => void;
+  prompts: { id: string; description: string; created_at: string; artifact_path?: string }[];
+  onSelectPrompt: (description: string, id?: string, artifactPath?: string) => void;
 }
 
 export function RecentPrompts({ prompts, onSelectPrompt }: RecentPromptsProps) {
@@ -19,12 +19,17 @@ export function RecentPrompts({ prompts, onSelectPrompt }: RecentPromptsProps) {
           {prompts.map((prompt) => (
             <button
               key={prompt.id}
-              onClick={() => onSelectPrompt(prompt.description)}
+              onClick={() => onSelectPrompt(prompt.description, prompt.id, prompt.artifact_path)}
               className="w-full text-left p-3 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-sm"
             >
               {prompt.description.length > 100
                 ? `${prompt.description.slice(0, 100)}...`
                 : prompt.description}
+              {prompt.artifact_path && (
+                <span className="text-xs block mt-1 text-violet-600 dark:text-violet-400">
+                  Has saved project data
+                </span>
+              )}
             </button>
           ))}
         </div>

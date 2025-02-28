@@ -53,7 +53,7 @@ const Index = () => {
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [session, setSession] = useState<any>(null);
-  const [recentPrompts, setRecentPrompts] = useState<{ id: string; description: string; created_at: string; }[]>([]);
+  const [recentPrompts, setRecentPrompts] = useState<{ id: string; description: string; created_at: string; artifact_path?: string; }[]>([]);
   const [authDialog, setAuthDialog] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -130,19 +130,111 @@ const Index = () => {
     setRecentPrompts(data);
   };
 
-  const savePrompt = async (description: string) => {
-    if (!session?.user) return;
+  const savePromptAndArtifacts = async (description: string, projectBreakdown: Breakdown) => {
+    if (!session?.user) return null;
 
-    const { error } = await supabase
-      .from('user_prompts')
-      .insert([{ description, user_id: session.user.id }]);
+    try {
+      // Generate a unique filename for the artifact
+      const timestamp = new Date().toISOString();
+      const artifactPath = `${session.user.id}/${timestamp}_breakdown.json`;
+      
+      // Upload the breakdown as a JSON file to storage
+      const { error: uploadError } = await supabase.storage
+        .from('project_artifacts')
+        .upload(artifactPath, JSON.stringify(projectBreakdown), {
+          contentType: 'application/json',
+          upsert: false
+        });
 
-    if (error) {
-      console.error('Error saving prompt:', error);
-      return;
+      if (uploadError) {
+        console.error('Error uploading artifact:', uploadError);
+        toast({
+          title: "Storage Error",
+          description: "Failed to save your project artifacts.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Get the public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('project_artifacts')
+        .getPublicUrl(artifactPath);
+
+      // Save the prompt with a reference to the uploaded artifact
+      const { data: promptData, error: promptError } = await supabase
+        .from('user_prompts')
+        .insert([{ 
+          description, 
+          user_id: session.user.id,
+          artifact_path: artifactPath
+        }]);
+
+      if (promptError) {
+        console.error('Error saving prompt:', promptError);
+        toast({
+          title: "Database Error",
+          description: "Your prompt was saved but failed to link with artifacts.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      await fetchRecentPrompts();
+      return artifactPath;
+    } catch (error) {
+      console.error('Error in savePromptAndArtifacts:', error);
+      return null;
     }
+  };
 
-    await fetchRecentPrompts();
+  const loadArtifactFromPrompt = async (promptId: string, artifactPath?: string) => {
+    if (!session?.user || !artifactPath) return;
+
+    try {
+      // Download the artifact file
+      const { data, error } = await supabase.storage
+        .from('project_artifacts')
+        .download(artifactPath);
+
+      if (error) {
+        console.error('Error downloading artifact:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load the saved project data.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Parse the JSON data from the file
+      const jsonText = await data.text();
+      const breakdownData: Breakdown = JSON.parse(jsonText);
+      
+      // Set the breakdown state
+      setBreakdown(breakdownData);
+      
+      toast({
+        title: "Project Loaded",
+        description: "Your saved project data has been loaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error parsing artifact data:', error);
+      toast({
+        title: "Error",
+        description: "The project data couldn't be loaded properly.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSelectPrompt = async (description: string, promptId?: string, artifactPath?: string) => {
+    setProjectDescription(description);
+    
+    // If there's an artifact path, load the saved breakdown
+    if (promptId && artifactPath) {
+      await loadArtifactFromPrompt(promptId, artifactPath);
+    }
   };
 
   const handleTechnicalComponentsSave = async (components: string[]) => {
@@ -186,6 +278,11 @@ const Index = () => {
     
     setBreakdown(updatedBreakdown);
 
+    // Save the updated breakdown to storage if user is logged in
+    if (session?.user) {
+      await savePromptAndArtifacts(projectDescription, updatedBreakdown);
+    }
+
     toast({
       title: "Project Updated",
       description: "Technical constraints and estimations have been recalculated.",
@@ -226,13 +323,20 @@ const Index = () => {
 
       if (estimationError) throw estimationError;
 
-      setBreakdown({
+      const updatedBreakdown = {
         features: updatedFeatures.map((feature, i) => ({
           ...feature,
           estimation: estimationData.estimations[i]
         })),
         technicalComponents: breakdown.technicalComponents
-      });
+      };
+
+      setBreakdown(updatedBreakdown);
+      
+      // Save the updated breakdown to storage if user is logged in
+      if (session?.user) {
+        await savePromptAndArtifacts(projectDescription, updatedBreakdown);
+      }
       
       setEditingFeature(null);
       setEditedContent(null);
@@ -267,10 +371,6 @@ const Index = () => {
 
     setLoading(true);
     try {
-      if (session?.user) {
-        await savePrompt(projectDescription);
-      }
-
       const { data: breakdownResponse, error: breakdownError } = await supabase.functions.invoke('generate-breakdown', {
         body: { description: projectDescription }
       });
@@ -316,6 +416,12 @@ const Index = () => {
       console.log('Enhanced breakdown:', enhancedBreakdown);
       
       setBreakdown(enhancedBreakdown);
+
+      // Save to Supabase if user is logged in
+      if (session?.user) {
+        await savePromptAndArtifacts(projectDescription, enhancedBreakdown);
+      }
+
       toast({
         title: "Success",
         description: "Project breakdown and estimations have been generated.",
@@ -431,7 +537,8 @@ const Index = () => {
           {session && recentPrompts.length > 0 && (
             <RecentPrompts
               prompts={recentPrompts}
-              onSelectPrompt={setProjectDescription}
+              onSelectPrompt={(description, id, artifactPath) => 
+                handleSelectPrompt(description, id, artifactPath)}
             />
           )}
 
