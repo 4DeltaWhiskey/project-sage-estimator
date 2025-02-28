@@ -697,8 +697,8 @@ export function ExportSection() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Button 
           variant="outline" 
-          className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-          onClick={() => handleExport('Excel')}
+          className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10 opacity-50 cursor-not-allowed"
+          disabled={true}
         >
           <FileSpreadsheet className="h-8 w-8" />
           <span>Export to Excel</span>
@@ -706,8 +706,8 @@ export function ExportSection() {
 
         <Button 
           variant="outline"
-          className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10"
-          onClick={() => handleExport('GitHub')}
+          className="h-auto py-6 flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10 dark:bg-black/5 dark:hover:bg-black/10 opacity-50 cursor-not-allowed"
+          disabled={true}
         >
           <Github className="h-8 w-8" />
           <span>Export to GitHub</span>
