@@ -41,18 +41,21 @@ export type Database = {
       }
       user_prompts: {
         Row: {
+          artifact_path: string | null
           created_at: string
           description: string
           id: string
           user_id: string
         }
         Insert: {
+          artifact_path?: string | null
           created_at?: string
           description: string
           id?: string
           user_id: string
         }
         Update: {
+          artifact_path?: string | null
           created_at?: string
           description?: string
           id?: string
