@@ -70,8 +70,7 @@ serve(async (req) => {
             1. Start with the project description
             2. List all features with their descriptions
             3. Include user stories for each feature
-            4. List all technical constraints/components
-            5. End with instructions to create a responsive, modern web application using React, TypeScript, and Tailwind CSS.
+            4. End with instructions to create a responsive, modern web application using React, TypeScript, and Tailwind CSS.
             
             Make the prompt clear, detailed, and optimized for an AI coding assistant to understand the requirements.`
           }
