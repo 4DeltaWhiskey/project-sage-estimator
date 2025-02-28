@@ -110,6 +110,58 @@ export function ExportSection() {
     return "New Project";
   };
 
+  // Generate acceptance criteria for a user story
+  const generateAcceptanceCriteria = (userStory: string, featureName: string) => {
+    // Extract action or main intent from user story
+    let action = "implement functionality";
+    
+    // Common user story formats: "As a X, I want Y, so that Z"
+    if (userStory.includes("I want")) {
+      const match = userStory.match(/I want\s+(.+?)(?:,|\s+so\s+that|$)/i);
+      if (match && match[1]) {
+        action = match[1].trim();
+      }
+    }
+    
+    // Create standard acceptance criteria
+    return `<div>
+<h3>Acceptance Criteria:</h3>
+<ul>
+  <li>Given ${featureName} is active, when ${action}, then the system responds appropriately</li>
+  <li>The UI elements meet the design guidelines and are responsive</li>
+  <li>All form inputs include proper validation</li>
+  <li>Error messages are clear and helpful</li>
+  <li>Performance meets established benchmarks</li>
+  <li>The functionality is accessible to all user types</li>
+</ul>
+<h3>Definition of Done:</h3>
+<ul>
+  <li>Code has been reviewed and approved</li>
+  <li>Unit tests are written and passing</li>
+  <li>Integration tests are written and passing</li>
+  <li>Documentation has been updated</li>
+  <li>The feature has been tested in a QA environment</li>
+</ul>
+</div>`;
+  };
+
+  // Get effort estimate for a user story based on feature estimation
+  const calculateStoryEffort = (feature: UserStory, storyIndex: number, storyCount: number) => {
+    if (!feature.estimation) {
+      return 1; // Default to 1 hour if no estimation
+    }
+    
+    // Distribute feature hours among stories, ensuring at least 1 hour per story
+    const totalHours = feature.estimation.hours;
+    const baseEffort = Math.max(1, Math.floor(totalHours / storyCount));
+    
+    // Add a little variance based on story position (first stories might be more complex)
+    const position = storyIndex / storyCount;
+    const variance = position < 0.3 ? 1 : position < 0.7 ? 0 : -0.5;
+    
+    return Math.max(1, Math.round(baseEffort + variance));
+  };
+
   // Check for session on component mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -431,13 +483,20 @@ export function ExportSection() {
     }
   };
 
-  const createWorkItem = async (type: string, title: string, description: string, parentId?: number): Promise<number> => {
+  const createWorkItem = async (
+    type: string, 
+    title: string, 
+    description: string, 
+    parentId?: number,
+    effortHours?: number,
+    acceptanceCriteria?: string
+  ): Promise<number> => {
     const headers = new Headers();
     headers.append('Authorization', 'Basic ' + btoa(':' + azureConfig.pat));
     headers.append('Content-Type', 'application/json-patch+json');
     
-    // Prepare fields including area and iteration paths if specified
-    let fields: Array<{op: string, path: string, value: string | {rel: string, url: string}}> = [
+    // Prepare fields for the work item
+    let fields: Array<{op: string, path: string, value: string | number | {rel: string, url: string}}> = [
       {
         "op": "add",
         "path": "/fields/System.Title",
@@ -449,6 +508,24 @@ export function ExportSection() {
         "value": description
       }
     ];
+    
+    // Add effort field for User Story
+    if (type === "User Story" && effortHours !== undefined) {
+      fields.push({
+        "op": "add",
+        "path": "/fields/Microsoft.VSTS.Scheduling.Effort",
+        "value": effortHours
+      });
+    }
+    
+    // Add acceptance criteria for User Story if provided
+    if (type === "User Story" && acceptanceCriteria) {
+      fields.push({
+        "op": "add",
+        "path": "/fields/Microsoft.VSTS.Common.AcceptanceCriteria",
+        "value": acceptanceCriteria
+      });
+    }
     
     // Create the work item first
     const response = await fetch(
@@ -555,12 +632,20 @@ export function ExportSection() {
           featuresCreated++;
           
           // Create user stories as User Story work items under the feature
-          for (const userStory of feature.userStories) {
+          const storyCount = feature.userStories.length;
+          
+          for (let i = 0; i < storyCount; i++) {
+            const userStory = feature.userStories[i];
+            const storyEffort = calculateStoryEffort(feature, i, storyCount);
+            const storyAcceptanceCriteria = generateAcceptanceCriteria(userStory, feature.name);
+            
             await createWorkItem(
               "User Story",
               userStory,
               `Part of feature: ${feature.name}`,
-              featureId // Set the feature as the parent for this user story
+              featureId, // Set the feature as the parent for this user story
+              storyEffort, // Add effort estimation in hours
+              storyAcceptanceCriteria // Add acceptance criteria
             );
             
             storiesCreated++;
