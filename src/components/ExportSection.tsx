@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserStory, Breakdown } from "@/types/project";
+import { BuildWithLovableModal } from "@/components/BuildWithLovableModal";
 
 interface AzureProject {
   id: string;
@@ -64,6 +65,7 @@ export function ExportSection() {
   const [showAzureDialog, setShowAzureDialog] = useState(false);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showEpicDialog, setShowEpicDialog] = useState(false);
+  const [showLovableModal, setShowLovableModal] = useState(false);
   const [azureConfig, setAzureConfig] = useState({
     organization: "",
     project: "",
@@ -268,12 +270,16 @@ export function ExportSection() {
   };
 
   const handleBuildWithLovable = () => {
-    toast({
-      title: "Build Started",
-      description: "Preparing to build your project with Lovable...",
-    });
-    // Here you would implement the actual functionality to build with Lovable
-    // For now, this is just a placeholder toast notification
+    if (!breakdown) {
+      toast({
+        title: "Project Required",
+        description: "Please generate a project breakdown first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setShowLovableModal(true);
   };
 
   const fetchAzureProjects = async () => {
@@ -728,6 +734,14 @@ export function ExportSection() {
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-4">
         Export your project breakdown and estimations in various formats for further planning and collaboration.
       </p>
+
+      {/* Build with Lovable Modal */}
+      <BuildWithLovableModal 
+        open={showLovableModal}
+        onOpenChange={setShowLovableModal}
+        breakdown={breakdown}
+        projectDescription={projectDescription}
+      />
 
       {/* Initial Azure DevOps Connection Dialog */}
       <Dialog open={showAzureDialog} onOpenChange={setShowAzureDialog}>
