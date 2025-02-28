@@ -55,34 +55,49 @@ export function BuildWithLovableModal({
 
       if (error) {
         console.error('Error generating prompt:', error);
-        setError('Failed to generate prompt. Please try again.');
+        
+        // Use fallback if edge function fails
+        const fallbackPrompt = generateFallbackPrompt();
+        setGeneratedPrompt(fallbackPrompt);
+        
+        // Notify user about fallback
         toast({
-          title: "Error",
-          description: "Failed to generate prompt. Please try again.",
-          variant: "destructive",
+          title: "Using local prompt generation",
+          description: "We're using locally generated prompt due to connection issues.",
+          variant: "default",
         });
+        
         return;
       }
 
-      if (data.error) {
+      if (data?.error) {
         console.error('AI service error:', data.error);
-        setError('The AI service encountered an error. Please try again.');
+        
+        // Use fallback if there's a data error
+        const fallbackPrompt = generateFallbackPrompt();
+        setGeneratedPrompt(fallbackPrompt);
+        
         toast({
-          title: "AI Service Error",
-          description: data.error,
-          variant: "destructive",
+          title: "Using local prompt generation",
+          description: "We're using locally generated prompt due to AI service issues.",
+          variant: "default",
         });
+        
         return;
       }
 
       setGeneratedPrompt(data.prompt);
     } catch (error) {
       console.error('Unexpected error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      
+      // Use fallback for unexpected errors
+      const fallbackPrompt = generateFallbackPrompt();
+      setGeneratedPrompt(fallbackPrompt);
+      
       toast({
-        title: "Unexpected Error",
-        description: "An unexpected error occurred while generating the prompt.",
-        variant: "destructive",
+        title: "Using local prompt generation",
+        description: "We're using locally generated prompt due to an unexpected error.",
+        variant: "default",
       });
     } finally {
       setIsGenerating(false);

@@ -25,6 +25,15 @@ serve(async (req) => {
       );
     }
 
+    // If OpenAI API key is not available, generate fallback prompt
+    if (!openAIApiKey) {
+      console.log("OpenAI API key not found, using fallback prompt generation");
+      const fallbackPrompt = generateFallbackPrompt(projectDescription, breakdown);
+      return new Response(JSON.stringify({ prompt: fallbackPrompt }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Prepare a JSON structure for the breakdown to send to OpenAI
     const breakdownData = {
       features: breakdown.features.map((feature: any) => ({
@@ -71,8 +80,17 @@ serve(async (req) => {
     });
 
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Invalid OpenAI response:', data);
+      // Use fallback if OpenAI response is invalid
+      const fallbackPrompt = generateFallbackPrompt(projectDescription, breakdown);
+      return new Response(JSON.stringify({ prompt: fallbackPrompt }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     const generatedPrompt = data.choices[0].message.content;
-
     console.log("Generated Lovable prompt successfully");
     
     return new Response(JSON.stringify({ prompt: generatedPrompt }), {
@@ -80,9 +98,61 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in generate-lovable-prompt function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    
+    // In case of any error, generate a fallback prompt
+    try {
+      const { projectDescription, breakdown } = await req.json();
+      const fallbackPrompt = generateFallbackPrompt(projectDescription, breakdown);
+      
+      return new Response(JSON.stringify({ prompt: fallbackPrompt }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (fallbackError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   }
 });
+
+// Fallback prompt generation function
+function generateFallbackPrompt(projectDescription: string, breakdown: any) {
+  let prompt = "";
+  
+  // Add project description
+  prompt += `I want to build a web application with the following description:\n\n${projectDescription}\n\n`;
+  
+  // Add features and user stories
+  if (breakdown && breakdown.features.length > 0) {
+    prompt += "The application should include the following features:\n\n";
+    
+    breakdown.features.forEach((feature: any, index: number) => {
+      prompt += `${index + 1}. ${feature.name}: ${feature.description}\n`;
+      
+      // Add user stories for each feature
+      if (feature.userStories.length > 0) {
+        prompt += "   User Stories:\n";
+        feature.userStories.forEach((story: string, storyIdx: number) => {
+          prompt += `   - ${story}\n`;
+        });
+      }
+      
+      prompt += "\n";
+    });
+  }
+  
+  // Add technical constraints
+  if (breakdown && breakdown.technicalComponents.length > 0) {
+    prompt += "Technical constraints and components to use:\n";
+    breakdown.technicalComponents.forEach((tech: string) => {
+      prompt += `- ${tech}\n`;
+    });
+    prompt += "\n";
+  }
+  
+  // Add final instructions for Lovable
+  prompt += `Please create a responsive, modern web application based on these requirements using React, Typescript, and Tailwind CSS. Start by showing me a basic structure of the main page with navigation and key components.`;
+  
+  return prompt;
+}
