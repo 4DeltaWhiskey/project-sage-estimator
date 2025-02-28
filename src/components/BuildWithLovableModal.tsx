@@ -36,15 +36,18 @@ export function BuildWithLovableModal({
   // Generate a prompt when the modal opens
   useEffect(() => {
     if (open && breakdown) {
-      generatePromptWithAI();
+      // Always use the edge function for prompt generation
+      generatePromptWithEdgeFunction();
     }
   }, [open, breakdown, projectDescription]);
 
-  const generatePromptWithAI = async () => {
+  const generatePromptWithEdgeFunction = async () => {
     setIsGenerating(true);
     setError(null);
 
     try {
+      console.log('Calling Supabase edge function to generate prompt...');
+      
       // Call the Supabase edge function to generate the prompt
       const { data, error } = await supabase.functions.invoke('generate-lovable-prompt', {
         body: { 
@@ -55,94 +58,44 @@ export function BuildWithLovableModal({
 
       if (error) {
         console.error('Error generating prompt:', error);
-        
-        // Use fallback if edge function fails
-        const fallbackPrompt = generateFallbackPrompt();
-        setGeneratedPrompt(fallbackPrompt);
-        
-        // Notify user about fallback
+        setError(`Error calling edge function: ${error.message}`);
         toast({
-          title: "Using local prompt generation",
-          description: "We're using locally generated prompt due to connection issues.",
-          variant: "default",
+          title: "Failed to generate prompt",
+          description: "There was an error contacting our AI service. Please try again.",
+          variant: "destructive",
         });
-        
         return;
       }
 
       if (data?.error) {
         console.error('AI service error:', data.error);
-        
-        // Use fallback if there's a data error
-        const fallbackPrompt = generateFallbackPrompt();
-        setGeneratedPrompt(fallbackPrompt);
-        
+        setError(`AI service error: ${data.error}`);
         toast({
-          title: "Using local prompt generation",
-          description: "We're using locally generated prompt due to AI service issues.",
-          variant: "default",
+          title: "AI Service Error",
+          description: data.error,
+          variant: "destructive",
         });
-        
         return;
       }
 
+      console.log('Prompt generated successfully');
       setGeneratedPrompt(data.prompt);
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      
-      // Use fallback for unexpected errors
-      const fallbackPrompt = generateFallbackPrompt();
-      setGeneratedPrompt(fallbackPrompt);
       
       toast({
-        title: "Using local prompt generation",
-        description: "We're using locally generated prompt due to an unexpected error.",
-        variant: "default",
+        title: "Prompt Generated",
+        description: "Your Lovable prompt has been generated successfully.",
+      });
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      setError(`Unexpected error: ${error.message}`);
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred while generating the prompt.",
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  // Fallback prompt generation in case the AI service is unavailable
-  const generateFallbackPrompt = () => {
-    let prompt = "";
-    
-    // Add project description
-    prompt += `I want to build a web application with the following description:\n\n${projectDescription}\n\n`;
-    
-    // Add features and user stories
-    if (breakdown && breakdown.features.length > 0) {
-      prompt += "The application should include the following features:\n\n";
-      
-      breakdown.features.forEach((feature, index) => {
-        prompt += `${index + 1}. ${feature.name}: ${feature.description}\n`;
-        
-        // Add user stories for each feature
-        if (feature.userStories.length > 0) {
-          prompt += "   User Stories:\n";
-          feature.userStories.forEach((story, storyIdx) => {
-            prompt += `   - ${story}\n`;
-          });
-        }
-        
-        prompt += "\n";
-      });
-    }
-    
-    // Add technical constraints
-    if (breakdown && breakdown.technicalComponents.length > 0) {
-      prompt += "Technical constraints and components to use:\n";
-      breakdown.technicalComponents.forEach((tech) => {
-        prompt += `- ${tech}\n`;
-      });
-      prompt += "\n";
-    }
-    
-    // Add final instructions for Lovable
-    prompt += `Please create a responsive, modern web application based on these requirements using React, Typescript, and Tailwind CSS. Start by showing me a basic structure of the main page with navigation and key components.`;
-    
-    return prompt;
   };
 
   const handleCopy = async () => {
@@ -169,7 +122,7 @@ export function BuildWithLovableModal({
   };
 
   const handleRetry = () => {
-    generatePromptWithAI();
+    generatePromptWithEdgeFunction();
   };
 
   return (

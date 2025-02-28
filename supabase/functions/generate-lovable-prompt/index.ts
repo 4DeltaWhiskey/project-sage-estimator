@@ -18,20 +18,23 @@ serve(async (req) => {
   try {
     const { projectDescription, breakdown } = await req.json();
 
+    console.log("Received request to generate Lovable prompt");
+
     if (!projectDescription || !breakdown) {
+      console.error("Missing required parameters: projectDescription or breakdown");
       return new Response(
         JSON.stringify({ error: 'Project description and breakdown are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // If OpenAI API key is not available, generate fallback prompt
+    // Check if OpenAI API key is available
     if (!openAIApiKey) {
-      console.log("OpenAI API key not found, using fallback prompt generation");
-      const fallbackPrompt = generateFallbackPrompt(projectDescription, breakdown);
-      return new Response(JSON.stringify({ prompt: fallbackPrompt }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error("OpenAI API key not found");
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key not configured. Please set the OPENAI_API_KEY secret.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Prepare a JSON structure for the breakdown to send to OpenAI
@@ -44,6 +47,8 @@ serve(async (req) => {
       technicalComponents: breakdown.technicalComponents || []
     };
 
+    console.log("Calling OpenAI API to generate prompt");
+
     // Call OpenAI API to generate the prompt
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -52,11 +57,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.5-preview',
+        model: 'gpt-4o-mini', // Using a slightly faster model for prompt generation
         messages: [
           { 
             role: 'system', 
-            content: 'You are an assistant that creates detailed prompts for web application development based on project descriptions and requirements. Your prompts should be clear, comprehensive, and optimized for use with Lovable.dev.'
+            content: 'You are an assistant that creates detailed prompts for web application development based on project descriptions and requirements. Your prompts should be clear, comprehensive, and optimized for use with AI coding assistants.'
           },
           { 
             role: 'user', 
@@ -70,10 +75,10 @@ serve(async (req) => {
             1. Start with the project description
             2. List all features with their descriptions
             3. Include user stories for each feature
-            4. List all technical constraints/components, but make sure they comply with the standard integrations from lovable in https://docs.lovable.dev/integrations/introduction
+            4. List all technical constraints/components
             5. End with instructions to create a responsive, modern web application using React, TypeScript, and Tailwind CSS.
             
-            Make the prompt clear, detailed, and optimized for an AI coding agent like lovable.dev to understand the requirements. Here is a documentation for best practices in prompting Lovable.Dev: https://docs.lovable.dev/tips-tricks/prompting`
+            Make the prompt clear, detailed, and optimized for an AI coding assistant to understand the requirements.`
           }
         ],
       }),
@@ -83,76 +88,23 @@ serve(async (req) => {
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       console.error('Invalid OpenAI response:', data);
-      // Use fallback if OpenAI response is invalid
-      const fallbackPrompt = generateFallbackPrompt(projectDescription, breakdown);
-      return new Response(JSON.stringify({ prompt: fallbackPrompt }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to get valid response from OpenAI' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     const generatedPrompt = data.choices[0].message.content;
-    console.log("Generated Lovable prompt successfully");
+    console.log("Successfully generated Lovable prompt");
     
     return new Response(JSON.stringify({ prompt: generatedPrompt }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error in generate-lovable-prompt function:', error);
-    
-    // In case of any error, generate a fallback prompt
-    try {
-      const { projectDescription, breakdown } = await req.json();
-      const fallbackPrompt = generateFallbackPrompt(projectDescription, breakdown);
-      
-      return new Response(JSON.stringify({ prompt: fallbackPrompt }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    } catch (fallbackError) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    return new Response(
+      JSON.stringify({ error: `Error generating prompt: ${error.message}` }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
-
-// Fallback prompt generation function
-function generateFallbackPrompt(projectDescription: string, breakdown: any) {
-  let prompt = "";
-  
-  // Add project description
-  prompt += `I want to build a web application with the following description:\n\n${projectDescription}\n\n`;
-  
-  // Add features and user stories
-  if (breakdown && breakdown.features.length > 0) {
-    prompt += "The application should include the following features:\n\n";
-    
-    breakdown.features.forEach((feature: any, index: number) => {
-      prompt += `${index + 1}. ${feature.name}: ${feature.description}\n`;
-      
-      // Add user stories for each feature
-      if (feature.userStories.length > 0) {
-        prompt += "   User Stories:\n";
-        feature.userStories.forEach((story: string, storyIdx: number) => {
-          prompt += `   - ${story}\n`;
-        });
-      }
-      
-      prompt += "\n";
-    });
-  }
-  
-  // Add technical constraints
-  if (breakdown && breakdown.technicalComponents.length > 0) {
-    prompt += "Technical constraints and components to use:\n";
-    breakdown.technicalComponents.forEach((tech: string) => {
-      prompt += `- ${tech}\n`;
-    });
-    prompt += "\n";
-  }
-  
-  // Add final instructions for Lovable
-  prompt += `Please create a responsive, modern web application based on these requirements using React, Typescript, and Tailwind CSS. Start by showing me a basic structure of the main page with navigation and key components.`;
-  
-  return prompt;
-}
