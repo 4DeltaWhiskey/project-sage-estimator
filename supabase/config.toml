@@ -30,12 +30,6 @@ enabled = true
 enabled = true
 site_url = "http://127.0.0.1:3000"
 
-[auth.email]
-enabled = true
-
-[auth.sms]
-enabled = true
-
 [functions.encrypt-azure-pat]
 verify_jwt = true
 
