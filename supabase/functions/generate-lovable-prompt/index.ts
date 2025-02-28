@@ -56,7 +56,7 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: 'You are an assistant that creates detailed prompts for web application development based on project descriptions and requirements. Your prompts should be clear, comprehensive, and optimized for use with AI coding assistants.'
+            content: 'You are an assistant that creates detailed prompts for web application development based on project descriptions and requirements. Your prompts should be clear, comprehensive, and optimized for use with Lovable.dev.'
           },
           { 
             role: 'user', 
@@ -70,10 +70,10 @@ serve(async (req) => {
             1. Start with the project description
             2. List all features with their descriptions
             3. Include user stories for each feature
-            4. List all technical constraints/components
+            4. List all technical constraints/components, but make sure they comply with the standard integrations from lovable in https://docs.lovable.dev/integrations/introduction
             5. End with instructions to create a responsive, modern web application using React, TypeScript, and Tailwind CSS.
             
-            Make the prompt clear, detailed, and optimized for an AI coding assistant to understand the requirements.`
+            Make the prompt clear, detailed, and optimized for an AI coding agent like lovable.dev to understand the requirements. Here is a documentation for best practices in prompting Lovable.Dev: https://docs.lovable.dev/tips-tricks/prompting`
           }
         ],
       }),
