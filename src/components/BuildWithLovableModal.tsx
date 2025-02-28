@@ -166,7 +166,7 @@ export function BuildWithLovableModal({
         <DialogFooter className="mt-4">
           <Button
             variant="default" 
-            onClick={() => window.open("https://lovable.dev/new", "_blank")}
+            onClick={() => window.open("https://lovable.dev", "_blank")}
             className="bg-violet-600 hover:bg-violet-700 text-white"
           >
             Open Lovable
