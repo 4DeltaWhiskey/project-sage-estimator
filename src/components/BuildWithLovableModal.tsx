@@ -33,9 +33,18 @@ export function BuildWithLovableModal({
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Generate a prompt when the modal opens
+  // Reset state when modal is opened or closed
   useEffect(() => {
-    if (open && breakdown) {
+    if (!open) {
+      // Reset when modal closes
+      setGeneratedPrompt("");
+      setError(null);
+      setIsCopied(false);
+    } else if (open && breakdown) {
+      // Generate new prompt when modal opens with fresh data
+      setIsGenerating(true);
+      setError(null);
+      setGeneratedPrompt("");
       generatePromptWithAI();
     }
   }, [open, breakdown, projectDescription]);
@@ -45,107 +54,62 @@ export function BuildWithLovableModal({
     setError(null);
 
     try {
+      console.log("Generating prompt with parameters:", { 
+        projectDescription, 
+        breakdown: JSON.stringify(breakdown, null, 2) 
+      });
+
       // Call the Supabase edge function to generate the prompt
       const { data, error } = await supabase.functions.invoke('generate-lovable-prompt', {
         body: { 
           projectDescription, 
-          breakdown 
+          breakdown,
+          timestamp: new Date().getTime() // Add timestamp to avoid caching
         }
       });
 
+      console.log("Edge function response:", { data, error });
+
       if (error) {
         console.error('Error generating prompt:', error);
-        
-        // Use fallback if edge function fails
-        const fallbackPrompt = generateFallbackPrompt();
-        setGeneratedPrompt(fallbackPrompt);
-        
-        // Notify user about fallback
-        toast({
-          title: "Using local prompt generation",
-          description: "We're using locally generated prompt due to connection issues.",
-          variant: "default",
-        });
-        
+        setError(`Failed to generate prompt: ${error.message}`);
         return;
       }
 
-      if (data?.error) {
+      if (!data) {
+        console.error('No data returned from edge function');
+        setError("No data returned from the server. Please try again.");
+        return;
+      }
+
+      if (data.error) {
         console.error('AI service error:', data.error);
-        
-        // Use fallback if there's a data error
-        const fallbackPrompt = generateFallbackPrompt();
-        setGeneratedPrompt(fallbackPrompt);
-        
-        toast({
-          title: "Using local prompt generation",
-          description: "We're using locally generated prompt due to AI service issues.",
-          variant: "default",
-        });
-        
+        setError(`AI service error: ${data.error}`);
+        return;
+      }
+
+      if (!data.prompt) {
+        console.error('No prompt in response:', data);
+        setError("Generated prompt was empty. Please try again.");
         return;
       }
 
       setGeneratedPrompt(data.prompt);
+      toast({
+        title: "Prompt Generated",
+        description: "Your Lovable prompt has been successfully created.",
+      });
     } catch (error) {
       console.error('Unexpected error:', error);
-      
-      // Use fallback for unexpected errors
-      const fallbackPrompt = generateFallbackPrompt();
-      setGeneratedPrompt(fallbackPrompt);
-      
-      toast({
-        title: "Using local prompt generation",
-        description: "We're using locally generated prompt due to an unexpected error.",
-        variant: "default",
-      });
+      setError(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Fallback prompt generation in case the AI service is unavailable
-  const generateFallbackPrompt = () => {
-    let prompt = "";
-    
-    // Add project description
-    prompt += `I want to build a web application with the following description:\n\n${projectDescription}\n\n`;
-    
-    // Add features and user stories
-    if (breakdown && breakdown.features.length > 0) {
-      prompt += "The application should include the following features:\n\n";
-      
-      breakdown.features.forEach((feature, index) => {
-        prompt += `${index + 1}. ${feature.name}: ${feature.description}\n`;
-        
-        // Add user stories for each feature
-        if (feature.userStories.length > 0) {
-          prompt += "   User Stories:\n";
-          feature.userStories.forEach((story, storyIdx) => {
-            prompt += `   - ${story}\n`;
-          });
-        }
-        
-        prompt += "\n";
-      });
-    }
-    
-    // Add technical constraints
-    if (breakdown && breakdown.technicalComponents.length > 0) {
-      prompt += "Technical constraints and components to use:\n";
-      breakdown.technicalComponents.forEach((tech) => {
-        prompt += `- ${tech}\n`;
-      });
-      prompt += "\n";
-    }
-    
-    // Add final instructions for Lovable
-    prompt += `Please create a responsive, modern web application based on these requirements using React, Typescript, and Tailwind CSS. Start by showing me a basic structure of the main page with navigation and key components.`;
-    
-    return prompt;
-  };
-
   const handleCopy = async () => {
+    if (!generatedPrompt) return;
+    
     try {
       await navigator.clipboard.writeText(generatedPrompt);
       setIsCopied(true);
@@ -204,7 +168,7 @@ export function BuildWithLovableModal({
                 variant="outline" 
                 size="sm" 
                 onClick={handleCopy}
-                disabled={isGenerating || !!error}
+                disabled={isGenerating || !!error || !generatedPrompt}
                 className="flex items-center gap-1"
               >
                 {isCopied ? (
@@ -252,7 +216,7 @@ export function BuildWithLovableModal({
             ) : null}
             
             <pre className="h-full overflow-auto bg-white dark:bg-[#1A1F2C] text-black dark:text-white p-4 text-sm font-mono">
-              {generatedPrompt}
+              {generatedPrompt || "No prompt generated yet."}
             </pre>
           </div>
         </div>
